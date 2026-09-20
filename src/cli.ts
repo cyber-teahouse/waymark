@@ -75,6 +75,15 @@ program.command("render")
     }
   });
 
+program.command("ui")
+  .description("启动本地实时工作流页面（watch plan/ 与证据目录）")
+  .option("-p, --port <n>", "端口", "7300")
+  .action(async (opts: { port: string }) => {
+    const root = program.opts<{ root: string }>().root;
+    const { startServer } = await import("./ui/server.js");
+    startServer(root, Number(opts.port));
+  });
+
 program.command("init")
   .description("在项目根生成 plan/ 骨架")
   .action(() => {
