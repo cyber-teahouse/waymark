@@ -7,7 +7,8 @@ import { buildGraph } from "./graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "./graph/validate.js";
 import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
-import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow } from "./render/render.js";
+import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
+import { markDone, listReady } from "./plan/commands.js";
 
 const program = new Command();
 program.name("planflow").description("/plan 驱动的项目进度工作流可视化")
@@ -51,6 +52,50 @@ program.command("sync")
     if (issues.some(i => i.level === "error")) process.exitCode = 1;
   });
 
+program.command("done")
+  .description("把节点标记为完成并追加完成记录（AI agent 友好的收尾命令）")
+  .argument("<id>", "节点 id")
+  .option("-m, --note <text>", "完成说明（追加到「完成记录」，日期为今天）")
+  .option("--acc", "同时勾选全部验收标准")
+  .action((id: string, opts: { note?: string; acc?: boolean }) => {
+    try {
+      const root = program.opts<{ root: string }>().root;
+      const { file } = markDone(root, id, { note: opts.note, allAcceptance: opts.acc });
+      console.log(`✔ ${id} 已标记完成（${file}）`);
+      const plan = loadPlan(root);
+      const graph = buildGraph(plan.nodes);
+      const issues = [
+        ...plan.issues,
+        ...validatePlan({ ...plan, graph }),
+        ...validatePatterns(plan.nodes),
+      ];
+      const errors = issues.filter(i => i.level === "error").length;
+      if (errors > 0) {
+        console.warn(`⚠ 当前计划存在 ${errors} 个规范错误（planflow check 查看）`);
+        process.exitCode = 1;
+      }
+      console.log("提示：运行 planflow sync 更新工作流数据");
+    } catch (e) {
+      console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program.command("ready")
+  .description("列出当前可开工的节点（planned 且依赖已满足）")
+  .action(() => {
+    const root = program.opts<{ root: string }>().root;
+    const items = listReady(root);
+    if (items.length === 0) {
+      console.log("没有可开工节点（无 planned 状态，或依赖未满足）");
+      return;
+    }
+    console.log(`可开工 ${items.length} 个节点:`);
+    for (const it of items) {
+      console.log(`  ${it.id}  ${it.title}${it.iteration ? `  [${it.iteration}]` : ""}`);
+    }
+  });
+
 program.command("render")
   .description("由 .planflow/workflow.json 生成自包含 index.html")
   .action(() => {
@@ -63,6 +108,9 @@ program.command("render")
     }
     try {
       const workflow = JSON.parse(fs.readFileSync(wfFile, "utf8"));
+      if (planNewerThan(root, wfFile)) {
+        console.warn("⚠ plan/ 在 sync 之后有改动，工作流数据可能过期——建议重新 planflow sync");
+      }
       const html = renderWorkflowHtml(workflow, loadBundle());
       writeIndexHtml(root, html);
       console.log(`✔ 已生成 ${path.join(root, ".planflow", "index.html")}（可直接用浏览器打开）`);

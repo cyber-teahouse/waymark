@@ -14,6 +14,10 @@ planflow check      # 校验规范（id 唯一 / deps 存在 / 无循环依赖 /
 planflow sync       # 生成 .planflow/workflow.json（含证据推断与警示）
 planflow render     # 生成自包含 .planflow/index.html
 planflow ui         # 本地实时页面（watch plan/、证据目录与 git），默认 http://localhost:7300
+
+# 推进节点（AI agent 友好）
+planflow done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
+planflow ready                     # 列出可开工节点（planned 且依赖已满足）
 ```
 
 ## /plan 结构

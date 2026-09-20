@@ -37,3 +37,32 @@ export function writeIndexHtml(root: string, html: string): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
 }
+
+/** plan/ 下是否有文件比参照文件（workflow.json）新——用于 render 时提示数据过期。 */
+export function planNewerThan(root: string, refFile: string): boolean {
+  const planDir = path.join(root, "plan");
+  if (!fs.existsSync(planDir)) return false;
+  const ref = fs.existsSync(refFile) ? fs.statSync(refFile).mtimeMs : 0;
+  let newest = 0;
+  const walk = (dir: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else {
+        try {
+          newest = Math.max(newest, fs.statSync(full).mtimeMs);
+        } catch {
+          // 文件刚好被删：忽略
+        }
+      }
+    }
+  };
+  walk(planDir);
+  return newest > ref;
+}
