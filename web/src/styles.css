@@ -8,7 +8,7 @@ html, body, #root { height: 100%; margin: 0; font-family: "Segoe UI", "Microsoft
 .tabs { display: flex; gap: 6px; }
 .tabs button { border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
 .tabs button.active { background: #2563eb; border-color: #2563eb; color: #fff; }
-.flow { flex: 1; }
+.flow { flex: 1; background: #fff; }
 .plan-node { width: 240px; border: 1.5px solid; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 .plan-node-title { font-weight: 600; margin-bottom: 4px; }
 .plan-node-meta { display: flex; gap: 8px; color: #4b5563; font-size: 12px; align-items: center; }
