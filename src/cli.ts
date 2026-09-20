@@ -7,6 +7,7 @@ import { buildGraph } from "./graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "./graph/validate.js";
 import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
+import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow } from "./render/render.js";
 
 const program = new Command();
 program.name("planflow").description("/plan 驱动的项目进度工作流可视化")
@@ -51,6 +52,27 @@ program.command("sync")
       console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);
     }
     if (issues.some(i => i.level === "error")) process.exitCode = 1;
+  });
+
+program.command("render")
+  .description("由 .planflow/workflow.json 生成自包含 index.html")
+  .action(() => {
+    const root = program.opts<{ root: string }>().root;
+    const wfFile = path.join(root, ".planflow", "workflow.json");
+    if (!fs.existsSync(wfFile)) {
+      console.error("✖ 未找到 .planflow/workflow.json，请先运行 planflow sync");
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const workflow = JSON.parse(fs.readFileSync(wfFile, "utf8"));
+      const html = renderWorkflowHtml(workflow, loadBundle());
+      writeIndexHtml(root, html);
+      console.log(`✔ 已生成 ${path.join(root, ".planflow", "index.html")}（可直接用浏览器打开）`);
+    } catch (e) {
+      console.error(`✖ ${(e instanceof Error) ? e.message : String(e)}`);
+      process.exitCode = 1;
+    }
   });
 
 program.command("init")
