@@ -38,5 +38,5 @@ export function scoreTests(root: string, globs: string[]): EvidenceCheck {
   const present = globs.every(g => hasSubstantialFile(root, g));
   return present
     ? { kind: "tests", ok: true, score: 0.5, detail: `${globs.length} 个测试 glob 均存在（v1 只查存在性）` }
-    : { kind: "tests", ok: false, score: 0, detail: "测试文件缺失" };
+    : { kind: "tests", ok: false, score: 0, detail: `测试文件缺失: ${globs.join(", ")}` };
 }

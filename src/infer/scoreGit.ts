@@ -36,6 +36,10 @@ export async function scoreGit(
       commits: matched.slice(0, MAX_LISTED),
     };
   } catch (e) {
-    return { check: { kind: "git", ok: false, score: 0, detail: `git 不可用: ${(e as Error).message}`, skipped: true }, commits: [] };
+    const msg = (e as Error).message;
+    if (msg.includes("does not have any commits")) {
+      return { check: { kind: "git", ok: false, score: 0, detail: "仓库无 commit", skipped: true }, commits: [] };
+    }
+    return { check: { kind: "git", ok: false, score: 0, detail: `git 不可用: ${msg}`, skipped: true }, commits: [] };
   }
 }

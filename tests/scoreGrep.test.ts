@@ -41,4 +41,9 @@ describe("scoreGrep", () => {
     expect(r.check.skipped).toBe(true);
     expect(r.check.score).toBe(0);
   });
+  it("default walk excludes plan/ but explicit scope still reaches it", () => {
+    fs.writeFileSync(path.join(root, "plan", "milestones", "UNIQUE-marker.md"), "zqxwvToken only here\n");
+    expect(scoreGrep(root, ["zqxwvToken"]).check.score).toBe(0);
+    expect(scoreGrep(root, ["zqxwvToken"], ["plan/**"]).check.score).toBe(1);
+  });
 });

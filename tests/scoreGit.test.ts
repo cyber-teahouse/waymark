@@ -7,10 +7,12 @@ import { scoreGit } from "../src/infer/scoreGit.js";
 
 let repo: string;
 let plain: string;
+let emptyRepo: string;
 
 beforeAll(async () => {
   repo = fs.mkdtempSync(path.join(os.tmpdir(), "pf-git-"));
   plain = fs.mkdtempSync(path.join(os.tmpdir(), "pf-plain-"));
+  emptyRepo = fs.mkdtempSync(path.join(os.tmpdir(), "pf-empty-"));
   const git = simpleGit(repo);
   await git.init();
   await git.addConfig("user.email", "t@t.local");
@@ -32,6 +34,14 @@ describe("scoreGit", () => {
   });
   it("no match scores 0", async () => {
     expect((await scoreGit(repo, ["zzz"])).check.score).toBe(0);
+  });
+  it("empty repo (no commits) reports 仓库无 commit, not generic git failure", async () => {
+    const git = simpleGit(emptyRepo);
+    await git.init();
+    const r = await scoreGit(emptyRepo, ["core"]);
+    expect(r.check.skipped).toBe(true);
+    expect(r.check.score).toBe(0);
+    expect(r.check.detail).toBe("仓库无 commit");
   });
   it("non-repo dir is skipped", async () => {
     const r = await scoreGit(plain, ["core"]);

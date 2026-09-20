@@ -44,9 +44,10 @@ describe("scoreTests", () => {
     const c = scoreTests(root, ["tests/auth/**"]);
     expect(c.score).toBe(0.5);
   });
-  it("0 when missing", () => {
+  it("0 when missing, naming the missing globs", () => {
     const c = scoreTests(root, ["tests/none/**"]);
     expect(c.score).toBe(0);
     expect(c.ok).toBe(false);
+    expect(c.detail).toBe("测试文件缺失: tests/none/**");
   });
 });
