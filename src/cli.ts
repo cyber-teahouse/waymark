@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
 import { Command } from "commander";
 import { loadPlan } from "./parser/parsePlan.js";
 import { buildGraph } from "./graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "./graph/validate.js";
 import { runInit } from "./scaffold.js";
+import { buildWorkflow } from "./sync/build.js";
 
 const program = new Command();
 program.name("planflow").description("/plan 驱动的项目进度工作流可视化")
@@ -30,6 +33,24 @@ program.command("check")
     } else {
       console.log("✔ 校验通过");
     }
+  });
+
+program.command("sync")
+  .description("解析 /plan + 代码证据 → 生成 .planflow/workflow.json")
+  .action(async () => {
+    const root = program.opts<{ root: string }>().root;
+    const { workflow, issues } = await buildWorkflow(root);
+    const outDir = path.join(root, ".planflow");
+    fs.mkdirSync(outDir, { recursive: true });
+    const outFile = path.join(outDir, "workflow.json");
+    fs.writeFileSync(outFile, JSON.stringify(workflow, null, 2), "utf8");
+    const s = workflow.stats;
+    console.log(`✔ workflow.json 已生成: ${outFile}`);
+    console.log(`节点 ${s.total} | 完成 ${s.done} | 进行中 ${s.inProgress} | 未开始 ${s.planned} | 警示 ${s.warnings}`);
+    for (const i of issues) {
+      console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);
+    }
+    if (issues.some(i => i.level === "error")) process.exitCode = 1;
   });
 
 program.command("init")
