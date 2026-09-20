@@ -80,8 +80,19 @@ program.command("ui")
   .option("-p, --port <n>", "端口", "7300")
   .action(async (opts: { port: string }) => {
     const root = program.opts<{ root: string }>().root;
-    const { startServer } = await import("./ui/server.js");
-    startServer(root, Number(opts.port));
+    const port = Number(opts.port);
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+      console.error("✖ 端口无效: " + opts.port);
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const { startServer } = await import("./ui/server.js");
+      startServer(root, port);
+    } catch (e) {
+      console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+      process.exitCode = 1;
+    }
   });
 
 program.command("init")

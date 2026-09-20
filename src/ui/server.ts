@@ -25,6 +25,7 @@ export function collectEvidenceWatchTargets(root: string): string[] {
 
 export function startServer(root: string, port: number, bundle?: string): http.Server {
   let cache: string | null = null;
+  let watcher: FSWatcher | undefined;
   const clients = new Set<http.ServerResponse>();
   const bundleHtml = bundle ?? loadBundle();
 
@@ -63,7 +64,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
   ].filter(t => fs.existsSync(t));
 
   server.on("listening", () => {
-    const watcher: FSWatcher = watch(watchTargets, {
+    watcher = watch(watchTargets, {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200 },
     });
@@ -79,6 +80,14 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         }
       }, 500);
     });
+  });
+
+  server.on("error", (e: Error) => {
+    console.error(`✖ PlanFlow UI 启动失败: ${e.message}`);
+    process.exitCode = 1;
+  });
+  server.on("close", () => {
+    void watcher?.close();
   });
 
   server.listen(port, "127.0.0.1", () => {
