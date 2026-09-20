@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { loadPlan } from "./parser/parsePlan.js";
 import { buildGraph } from "./graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "./graph/validate.js";
+import { runInit } from "./scaffold.js";
 
 const program = new Command();
 program.name("planflow").description("/plan 驱动的项目进度工作流可视化")
@@ -28,6 +29,18 @@ program.command("check")
       process.exitCode = 1;
     } else {
       console.log("✔ 校验通过");
+    }
+  });
+
+program.command("init")
+  .description("在项目根生成 plan/ 骨架")
+  .action(() => {
+    const root = program.opts<{ root: string }>().root;
+    try {
+      runInit(root);
+    } catch (e) {
+      console.error(`✖ ${(e as Error).message}`);
+      process.exitCode = 1;
     }
   });
 
