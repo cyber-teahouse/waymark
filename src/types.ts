@@ -102,3 +102,11 @@ export const WorkflowJsonSchema = z.object({
   }),
 });
 export type WorkflowJson = z.infer<typeof WorkflowJsonSchema>;
+
+export const DEFAULT_IGNORES = [
+  "**/node_modules/**", "**/.git/**", "**/dist/**", "**/out/**", "**/build/**",
+  "**/bin/**", "**/obj/**", "**/.planflow/**", "**/coverage/**",
+];
+export const IGNORE_DIR_NAMES = [
+  "node_modules", ".git", "dist", "out", "build", "bin", "obj", ".planflow", "coverage",
+];
