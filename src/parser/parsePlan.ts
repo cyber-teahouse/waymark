@@ -58,7 +58,7 @@ function preprocessYaml(raw: string): string {
   const fixed = raw.slice(bodyStart, bodyEnd).split(/\r?\n/).map(l =>
     l.replace(/^(\s*-\s*)\[([ xX])\]\s*(.*)$/,
       (_l: string, dash: string, mark: string, text: string) =>
-        `${dash}"[${mark}] ${text.replace(/"/g, '\\"')}"`))
+        `${dash}"[${mark}] ${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`))
     .join("\n");
   return raw.slice(0, bodyStart) + fixed + raw.slice(bodyEnd);
 }
