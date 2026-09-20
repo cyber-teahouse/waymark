@@ -1,0 +1,39 @@
+{
+  "name": "planflow-cli",
+  "version": "0.1.0",
+  "description": "/plan 驱动的项目进度工作流可视化 CLI",
+  "type": "module",
+  "bin": {
+    "planflow": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:web": "vite build --config web/vite.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "commander": "^15.0.0",
+    "fast-glob": "^3.3.3",
+    "gray-matter": "^4.0.3",
+    "simple-git": "^3.36.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@dagrejs/dagre": "^3.1.1",
+    "@types/node": "^26.6.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@xyflow/react": "^12.11.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.1"
+  }
+}
