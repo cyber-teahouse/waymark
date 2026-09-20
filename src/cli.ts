@@ -41,12 +41,9 @@ program.command("sync")
   .action(async () => {
     const root = program.opts<{ root: string }>().root;
     const { workflow, issues } = await buildWorkflow(root);
-    const outDir = path.join(root, ".planflow");
-    fs.mkdirSync(outDir, { recursive: true });
-    const outFile = path.join(outDir, "workflow.json");
-    fs.writeFileSync(outFile, JSON.stringify(workflow, null, 2), "utf8");
+    writeWorkflow(root, workflow);
     const s = workflow.stats;
-    console.log(`✔ workflow.json 已生成: ${outFile}`);
+    console.log(`✔ workflow.json 已生成: ${path.join(root, ".planflow", "workflow.json")}`);
     console.log(`节点 ${s.total} | 完成 ${s.done} | 进行中 ${s.inProgress} | 未开始 ${s.planned} | 警示 ${s.warnings}`);
     for (const i of issues) {
       console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);

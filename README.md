@@ -28,6 +28,11 @@ plan/
 状态机：`planned → in-progress → done`（旁路 blocked/dropped）。
 证据四维：`paths`/`grep`/`tests`/`git`；推断只提示不覆盖声明；冲突高亮（⚠ 证据不足 / 💡 可标记完成）。
 
+## 命令行参数
+
+- 全局：`--root <dir>` 指定项目根目录（默认当前目录），对所有子命令生效；
+- `ui -p, --port <n>`：本地服务端口（默认 7300）。
+
 ## 迭代演进
 
 新增 `plan/iterations/I2-xxx.md` + 新节点文件标 `iteration: I2` → `ui` 模式数秒内自动出现在视图中。
