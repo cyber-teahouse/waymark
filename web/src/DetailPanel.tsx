@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { WorkflowNode } from "../../src/types";
 import { STATUS_LABEL } from "./FlowView";
 
@@ -11,6 +11,13 @@ const WARNING_TEXT: Record<string, string> = {
   "ready-to-complete": "证据已齐备，可将状态更新为 done。",
   cycle: "该节点处于循环依赖中，依赖关系需要修复。",
 };
+
+const COMMIT_PREVIEW = 5;
+
+interface Related {
+  upstream: WorkflowNode[];
+  downstream: WorkflowNode[];
+}
 
 /** 区块模式：eyebrow 标签 + 延伸 hairline */
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
@@ -25,18 +32,72 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-export default function DetailPanel({ node, onClose }: { node: WorkflowNode; onClose: () => void }) {
+/** 依赖关系 chips：点击跳转到该节点 */
+function DepChips({ nodes, emptyText, onSelect }: {
+  nodes: WorkflowNode[];
+  emptyText: string;
+  onSelect: (id: string) => void;
+}) {
+  if (nodes.length === 0) {
+    return <div className="dep-empty">{emptyText}</div>;
+  }
+  return (
+    <div className="dep-chips">
+      {nodes.map(n => (
+        <button key={n.id} className="dep-chip" title={n.title} onClick={() => onSelect(n.id)}>
+          <span className="dep-dot" aria-hidden="true" />
+          <span className="dep-name">{n.title}</span>
+          <code className="dep-id">{n.id}</code>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function DetailPanel({ node, related, onSelect, onClose }: {
+  node: WorkflowNode;
+  related: Related | null;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  const prevFocus = useRef<HTMLElement | null>(null);
+  const [showAllCommits, setShowAllCommits] = useState(false);
+
+  // dialog 语义：接管焦点、Esc 关闭、关闭后归还焦点
+  useEffect(() => {
+    prevFocus.current = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      prevFocus.current?.focus?.();
+    };
+  }, [onClose]);
+
   const warnings: string[] = [];
   if (node.warning) warnings.push(WARNING_TEXT[node.warning]);
   if (node.cycle) warnings.push(WARNING_TEXT.cycle);
   const conf = Math.round((node.confidence ?? 0) * 100);
+  const commits = showAllCommits ? node.commits : node.commits.slice(0, COMMIT_PREVIEW);
+  const hasDeps = related && (related.upstream.length > 0 || related.downstream.length > 0);
 
   return (
-    <aside className="detail">
+    <aside
+      ref={panelRef}
+      className="detail"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="detail-title"
+      tabIndex={-1}
+    >
       <button className="close" onClick={onClose} aria-label="关闭详情">✕</button>
 
       <div className="detail-eyebrow">{node.type === "milestone" ? "MILESTONE" : "TASK"}</div>
-      <h2 className="detail-title">{node.title}</h2>
+      <h2 className="detail-title" id="detail-title">{node.title}</h2>
       <span className="detail-id">{node.id}</span>
 
       <div className="detail-status">
@@ -55,6 +116,23 @@ export default function DetailPanel({ node, onClose }: { node: WorkflowNode; onC
       {warnings.map((w, i) => (
         <div key={i} className="warn-callout">{w}</div>
       ))}
+
+      {hasDeps && (
+        <Section label="依赖关系">
+          {related!.upstream.length > 0 && (
+            <>
+              <div className="dep-label">前置节点</div>
+              <DepChips nodes={related!.upstream} emptyText="" onSelect={onSelect} />
+            </>
+          )}
+          {related!.downstream.length > 0 && (
+            <>
+              <div className="dep-label">下游节点</div>
+              <DepChips nodes={related!.downstream} emptyText="" onSelect={onSelect} />
+            </>
+          )}
+        </Section>
+      )}
 
       {node.acceptance.length > 0 && (
         <Section label="验收标准">
@@ -88,9 +166,9 @@ export default function DetailPanel({ node, onClose }: { node: WorkflowNode; onC
       )}
 
       {node.commits.length > 0 && (
-        <Section label="关联提交">
+        <Section label={`关联提交 · ${node.commits.length}`}>
           <div className="timeline">
-            {node.commits.map(c => (
+            {commits.map(c => (
               <div key={c.hash} className="tl-item">
                 <div className="tl-head">
                   <code className="hash">{c.hash}</code>
@@ -100,6 +178,11 @@ export default function DetailPanel({ node, onClose }: { node: WorkflowNode; onC
               </div>
             ))}
           </div>
+          {node.commits.length > COMMIT_PREVIEW && (
+            <button className="expand-btn" onClick={() => setShowAllCommits(v => !v)}>
+              {showAllCommits ? "收起" : `展开全部 ${node.commits.length} 条提交`}
+            </button>
+          )}
         </Section>
       )}
 
