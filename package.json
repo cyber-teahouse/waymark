@@ -9,10 +9,12 @@
   "engines": {
     "node": ">=20"
   },
+  "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:web": "vite build --config web/vite.config.ts",
-    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "npm run typecheck && vitest run",
     "test:watch": "vitest"
   },
   "license": "MIT",
@@ -26,7 +28,7 @@
   },
   "devDependencies": {
     "@dagrejs/dagre": "^3.1.1",
-    "@types/node": "^26.6.2",
+    "@types/node": "^22.20.4",
     "@vitejs/plugin-react": "^6.1.1",
     "@xyflow/react": "^12.11.6",
     "react": "^19.3.0",
