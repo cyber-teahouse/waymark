@@ -39,8 +39,8 @@ evidence:
   grep: ["coreInit"]
   git: ["core|骨架"]
 acceptance:
-  - "[x] 初始化工程"
-  - "[x] 基础构建脚本"
+  - [x] 初始化工程
+  - [x] 基础构建脚本
 ---
 
 ## 需求描述
@@ -62,8 +62,8 @@ evidence:
   paths: [src/auth/**, src/missing/**]
   tests: [tests/auth/**]
 acceptance:
-  - "[x] 密码登录"
-  - "[ ] 刷新令牌"
+  - [x] 密码登录
+  - [ ] 刷新令牌
 ---
 
 ## 需求描述

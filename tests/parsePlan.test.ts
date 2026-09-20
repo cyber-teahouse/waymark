@@ -52,4 +52,27 @@ describe("loadPlan", () => {
     expect(overview).toBeUndefined();
     expect(issues.some(i => i.message.includes("overview.md"))).toBe(true);
   });
+  it("tolerates unquoted github task-list acceptance items", async () => {
+    const root4 = fs.mkdtempSync(path.join(os.tmpdir(), "pf-task-"));
+    await makeSampleProject(root4);
+    fs.writeFileSync(path.join(root4, "plan", "milestones", "M4-form.md"),
+`---
+id: M4-form
+title: 表单细节
+type: task
+status: in-progress
+deps: []
+acceptance:
+  - [x] 邮箱登录
+  - [ ] 刷新令牌
+---
+
+## 需求描述
+优化表单细节。
+`);
+    const { nodes, issues } = loadPlan(root4);
+    expect(issues).toEqual([]);
+    const m4 = nodes.find(n => n.fm.id === "M4-form")!;
+    expect(m4.fm.acceptance).toEqual(["[x] 邮箱登录", "[ ] 刷新令牌"]);
+  });
 });

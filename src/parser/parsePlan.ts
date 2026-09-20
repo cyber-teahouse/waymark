@@ -45,6 +45,24 @@ function toPosix(p: string): string {
   return p.split(path.sep).join("/");
 }
 
+/** 将 frontmatter 中 GitHub 任务清单写法（`- [x] 文本` / `- [ ] 文本` / `- [X] 文本`，允许任意缩进）
+ *  改写为合法的带双引号 YAML 字符串，避免未加引号的 `[x]` 被当作 flow sequence 导致解析失败。
+ *  仅改写第一个 `---` 与下一个 `---` 之间的 frontmatter 块；定位不到块时原样返回。 */
+function preprocessYaml(raw: string): string {
+  const open = /^---[ \t]*(\r?\n|$)/.exec(raw);
+  if (!open) return raw;
+  const bodyStart = open[0].length;
+  const close = /^---[ \t]*(\r?\n|$)/m.exec(raw.slice(bodyStart));
+  if (!close) return raw;
+  const bodyEnd = bodyStart + close.index;
+  const fixed = raw.slice(bodyStart, bodyEnd).split(/\r?\n/).map(l =>
+    l.replace(/^(\s*-\s*)\[([ xX])\]\s*(.*)$/,
+      (_l: string, dash: string, mark: string, text: string) =>
+        `${dash}"[${mark}] ${text.replace(/"/g, '\\"')}"`))
+    .join("\n");
+  return raw.slice(0, bodyStart) + fixed + raw.slice(bodyEnd);
+}
+
 /** 解析单个节点文件；解析/校验失败时返回 issue 而不抛出。 */
 export function parseNodeFile(root: string, relFile: string): { doc?: PlanDoc; issue?: PlanIssue } {
   const abs = path.join(root, relFile);
@@ -56,7 +74,7 @@ export function parseNodeFile(root: string, relFile: string): { doc?: PlanDoc; i
   }
   let parsed: matter.GrayMatterFile<string>;
   try {
-    parsed = matter(raw);
+    parsed = matter(preprocessYaml(raw));
   } catch (e) {
     return { issue: { level: "error", file: relFile, message: `frontmatter 解析失败: ${(e as Error).message}` } };
   }
@@ -79,7 +97,7 @@ export function parseIterationFile(root: string, relFile: string): { doc?: Itera
   const abs = path.join(root, relFile);
   let parsed: matter.GrayMatterFile<string>;
   try {
-    parsed = matter(fs.readFileSync(abs, "utf8"));
+    parsed = matter(preprocessYaml(fs.readFileSync(abs, "utf8")));
   } catch (e) {
     return { issue: { level: "error", file: relFile, message: `迭代文件解析失败: ${(e as Error).message}` } };
   }
