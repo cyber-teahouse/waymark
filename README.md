@@ -50,6 +50,16 @@ plan/
 
 `waymark ready` 列出 planned 且依赖已满足的节点；页面侧这些节点带「可开工」紫色标识，详情栏给出开工提示。
 
+## MCP 集成
+
+`waymark mcp` 以 MCP stdio 服务启动，把项目工作流暴露给 AI agent（ZCode / Claude 等），无需额外参数——`--root` 默认为当前目录。在客户端配置中添加：
+
+```json
+{ "mcpServers": { "waymark": { "command": "waymark", "args": ["mcp"] } } }
+```
+
+提供 5 个工具：`waymark_summary` 获取项目工作流总览（轻量 JSON：统计/迭代/节点状态）；`waymark_get_node` 按 id 获取节点详情（验收/证据/提交/完成记录）；`waymark_list_ready` 列出可开工节点；`waymark_mark_done` 标记节点完成并追加完成记录；`waymark_check` 校验 /plan 规范并返回错误/警示明细。
+
 ## CI 自动渲染
 
 参考 [docs/ci-example.yml](docs/ci-example.yml)：push 时自动 `sync + render` 并提交 `.waymark/index.html`（git 证据需要 `fetch-depth: 0`）。

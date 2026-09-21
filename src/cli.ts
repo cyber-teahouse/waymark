@@ -140,6 +140,14 @@ program.command("ui")
     }
   });
 
+program.command("mcp")
+  .description("以 MCP stdio 服务启动（供 AI agent 集成）")
+  .action(async () => {
+    const root = program.opts<{ root: string }>().root;
+    const { startMcpServer } = await import("./mcp/server.js");
+    await startMcpServer(root);
+  });
+
 program.command("init")
   .description("在项目根生成 plan/ 骨架")
   .action(() => {
