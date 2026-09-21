@@ -12,7 +12,7 @@ import { markDone, listReady } from "./plan/commands.js";
 
 const program = new Command();
 program.name("waymark").description("/plan 驱动的项目进度工作流可视化")
-  .version("0.1.0").option("--root <dir>", "项目根目录", process.cwd());
+  .version("0.2.0").option("--root <dir>", "项目根目录", process.cwd());
 
 program.command("check")
   .description("校验 /plan 文档规范")
