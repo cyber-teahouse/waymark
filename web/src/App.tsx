@@ -170,6 +170,13 @@ export default function App() {
   const staleDays = Math.floor((Date.now() - new Date(wf.generatedAt).getTime()) / 86400000);
   const firstWarning = scopeNodes.find(n => n.warning !== null);
 
+  // 可开工：planned 且依赖全部 done/dropped（缺失的依赖视为满足，与 CLI ready 口径一致）
+  const scopeIds = new Set(scopeNodes.map(n => n.id));
+  const satisfied = new Set(scopeNodes.filter(n => n.displayStatus === "done" || n.displayStatus === "dropped").map(n => n.id));
+  const readyIds = new Set(scopeNodes
+    .filter(n => n.displayStatus === "planned" && n.deps.every(d => satisfied.has(d) || !scopeIds.has(d)))
+    .map(n => n.id));
+
   const chips: ChipDef[] = [
     { key: "done", label: "完成", st: "st-done", count: scopeStats.done },
     { key: "in-progress", label: "进行中", st: "st-in-progress", count: scopeStats.inProgress },
@@ -267,7 +274,7 @@ export default function App() {
         </nav>
       </header>
       <div className="flow-wrap">
-        <FlowView nodes={visible} edges={edges} selectedId={selected} onSelect={setSelected} />
+        <FlowView nodes={visible} edges={edges} selectedId={selected} readyIds={readyIds} onSelect={setSelected} />
         {visible.length === 0 && (
           <div className="flow-empty">
             没有匹配的节点
@@ -288,6 +295,7 @@ export default function App() {
           key={node.id}
           node={node}
           related={related}
+          isReady={readyIds.has(node.id)}
           onSelect={setSelected}
           onClose={() => setSelected(null)}
         />

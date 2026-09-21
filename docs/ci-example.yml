@@ -1,0 +1,35 @@
+# GitHub Actions 示例：每次 push 自动渲染 Waymark 进度页
+# 放到你的目标项目 .github/workflows/waymark.yml（不是 waymark 工具仓）
+name: Waymark
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # git 证据维度需要完整历史
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Waymark
+        run: npm install -g github:cyber-teahouse/waymark
+      - name: Render progress page
+        run: |
+          waymark sync
+          waymark render
+      - name: Commit rendered page
+        run: |
+          git config user.name "waymark-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add .waymark/index.html
+          git diff --cached --quiet || git commit -m "chore: update waymark progress page"
+          git push
+      # 可选：把 .waymark/index.html 发布到 GitHub Pages / 任何静态托管

@@ -40,3 +40,20 @@ plan/
 ## 迭代演进
 
 新增 `plan/iterations/I2-xxx.md` + 新节点文件标 `iteration: I2` → `ui` 模式数秒内自动出现在视图中。
+
+## check 规则
+
+- error（exit 1，可接 CI）：id 重复 / 依赖指向不存在节点 / 循环依赖（含路径）/ 迭代引用无效 / 总览表与里程碑双向不一致 / evidence 正则非法；
+- warning（仅提示）：已完成但无完成记录 / 进行中但验收无一勾选 / evidence 声明为空。
+
+## 可开工节点
+
+`waymark ready` 列出 planned 且依赖已满足的节点；页面侧这些节点带「可开工」紫色标识，详情栏给出开工提示。
+
+## CI 自动渲染
+
+参考 [docs/ci-example.yml](docs/ci-example.yml)：push 时自动 `sync + render` 并提交 `.waymark/index.html`（git 证据需要 `fetch-depth: 0`）。
+
+## License
+
+MIT

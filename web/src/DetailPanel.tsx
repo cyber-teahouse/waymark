@@ -54,9 +54,10 @@ function DepChips({ nodes, emptyText, onSelect }: {
   );
 }
 
-export default function DetailPanel({ node, related, onSelect, onClose }: {
+export default function DetailPanel({ node, related, isReady, onSelect, onClose }: {
   node: WorkflowNode;
   related: Related | null;
+  isReady: boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
@@ -112,6 +113,10 @@ export default function DetailPanel({ node, related, onSelect, onClose }: {
           </span>
         )}
       </div>
+
+      {isReady && node.displayStatus === "planned" && (
+        <div className="warn-callout ready">依赖已满足，可以开工——开始后把状态更新为 in-progress。</div>
+      )}
 
       {warnings.map((w, i) => (
         <div key={i} className="warn-callout">{w}</div>

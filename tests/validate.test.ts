@@ -57,4 +57,37 @@ describe("validatePlan", () => {
     const nodes = [doc("A", { evidence: { grep: ["([bad"] } })];
     expect(validatePatterns(nodes)).toHaveLength(1);
   });
+  it("warns when done node has no completion log", () => {
+    const nodes = [doc("A", { status: "done" })]; // doc 工厂 completionLog 为空
+    const issues = validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) });
+    expect(issues.some(i => i.level === "warning" && i.message.includes("完成记录"))).toBe(true);
+  });
+  it("does not warn about completion log when log exists", () => {
+    const nodes = [{ ...doc("A", { status: "done" }), completionLog: [{ date: "2026-09-22", text: "完成了" }] }];
+    const issues = validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) });
+    expect(issues.some(i => i.message.includes("完成记录"))).toBe(false);
+  });
+  it("warns when in-progress node has no checked acceptance", () => {
+    const nodes = [doc("A", { status: "in-progress", acceptance: ["[ ] 一", "[ ] 二"] })];
+    const issues = validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) });
+    expect(issues.some(i => i.level === "warning" && i.message.includes("验收"))).toBe(true);
+  });
+  it("does not warn about acceptance when none declared or some checked", () => {
+    const none = [doc("A", { status: "in-progress" })];
+    expect(validatePlan({ nodes: none, iterations: [], graph: buildGraph(none) })
+      .some(i => i.message.includes("验收"))).toBe(false);
+    const some = [doc("A", { status: "in-progress", acceptance: ["[x] 一", "[ ] 二"] })];
+    expect(validatePlan({ nodes: some, iterations: [], graph: buildGraph(some) })
+      .some(i => i.message.includes("验收"))).toBe(false);
+  });
+  it("warns when evidence declared but every dimension is empty", () => {
+    const nodes = [doc("A", { evidence: { paths: [], grep: [] } })];
+    const issues = validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) });
+    expect(issues.some(i => i.level === "warning" && i.message.includes("evidence"))).toBe(true);
+  });
+  it("does not warn when at least one evidence dimension is non-empty", () => {
+    const nodes = [doc("A", { evidence: { paths: [], grep: ["init"] } })];
+    expect(validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) })
+      .some(i => i.message.includes("evidence"))).toBe(false);
+  });
 });

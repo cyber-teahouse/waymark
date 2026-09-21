@@ -56,6 +56,21 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
       }
     }
   }
+
+  // 内容性约定（warning 级，不影响退出码）：
+  for (const n of nodes) {
+    if (n.fm.status === "done" && n.completionLog.length === 0) {
+      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 已完成但没有完成记录——建议在「完成记录」补充交付说明` });
+    }
+    if (n.fm.status === "in-progress" && n.fm.acceptance.length > 0
+      && !n.fm.acceptance.some(a => /^\s*\[\s*[xX]\s*\]/.test(a))) {
+      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 进行中但验收标准无一勾选——随进展及时勾选` });
+    }
+    const ev = n.fm.evidence;
+    if (ev && Object.values(ev).every(arr => !arr || arr.length === 0)) {
+      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 声明了 evidence 但所有维度为空——不会产生任何推断` });
+    }
+  }
   return issues;
 }
 

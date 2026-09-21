@@ -17,17 +17,19 @@ const EDGE_HIT = "#2C55E0";
 
 interface PlanNodeData extends Record<string, unknown> {
   wf: WorkflowNode;
+  ready: boolean;
   onSelect: (id: string) => void;
 }
 
 function PlanNode({ data, selected }: NodeProps) {
-  const { wf, onSelect } = data as PlanNodeData;
+  const { wf, ready, onSelect } = data as PlanNodeData;
   const accTotal = wf.acceptance.length;
   const accDone = wf.acceptance.filter(a => a.done).length;
   const depCount = wf.deps.length;
   const aria = [
     wf.title,
     STATUS_LABEL[wf.displayStatus],
+    ready ? "可开工" : null,
     accTotal > 0 ? `验收 ${accDone}/${accTotal}` : null,
     depCount > 0 ? `依赖 ${depCount} 项` : null,
     "按 Enter 查看详情",
@@ -70,6 +72,7 @@ function PlanNode({ data, selected }: NodeProps) {
           </>
         )}
         {wf.displayStatus === "in-progress" && <span className="wip-dot" title="进行中" />}
+        {ready && <span className="node-chip ready">可开工</span>}
         {wf.warning === "evidence-insufficient" && <span className="node-chip">证据不足</span>}
         {wf.warning === "ready-to-complete" && <span className="node-chip">可标记完成</span>}
         {wf.cycle && <span className="node-chip cyc">循环依赖</span>}
@@ -127,10 +130,11 @@ function Legend() {
   );
 }
 
-export default function FlowView({ nodes, edges, selectedId, onSelect }: {
+export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect }: {
   nodes: WorkflowNode[];
   edges: { from: string; to: string }[];
   selectedId: string | null;
+  readyIds: Set<string>;
   onSelect: (id: string) => void;
 }) {
   const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
@@ -148,10 +152,13 @@ export default function FlowView({ nodes, edges, selectedId, onSelect }: {
         markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: connected ? EDGE_HIT : EDGE_COLOR },
       } as Edge;
     });
-    // 把 onSelect 注入节点数据（键盘/点击都能打开详情）
-    const withSelect = laid.nodes.map(n => ({ ...n, data: { ...n.data, onSelect } as Record<string, unknown> }));
+    // 把 onSelect/ready 注入节点数据（键盘/点击都能打开详情）
+    const withSelect = laid.nodes.map(n => ({
+      ...n,
+      data: { ...n.data, ready: readyIds.has(n.id), onSelect } as Record<string, unknown>,
+    }));
     return { nodes: withSelect, edges: styled };
-  }, [nodes, edges, selectedId, onSelect]);
+  }, [nodes, edges, selectedId, readyIds, onSelect]);
 
   return (
     <div className="flow">
