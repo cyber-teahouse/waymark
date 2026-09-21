@@ -6,7 +6,7 @@ const STUB = '<html><head></head><body><div id="root"></div><script src="x.js"><
 describe("renderHtml", () => {
   it("injects data right after the root div and escapes <", () => {
     const html = renderHtml({ a: "<script>" }, STUB);
-    expect(html).toContain('<div id="root"></div><script>window.__PLANFLOW_DATA__={"a":"\\u003cscript\\u003e"};</script>');
+    expect(html).toContain('<div id="root"></div><script>window.__WAYMARK_DATA__={"a":"\\u003cscript\\u003e"};</script>');
     expect(html).not.toContain('{"a":"<script>"}');
   });
   it("throws when root div missing", () => {

@@ -52,7 +52,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
       res.end(cache);
     } catch (e) {
       res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-      res.end(`PlanFlow 渲染失败: ${(e as Error).message}`);
+      res.end(`Waymark 渲染失败: ${(e as Error).message}`);
     }
   });
 
@@ -83,7 +83,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
   });
 
   server.on("error", (e: Error) => {
-    console.error(`✖ PlanFlow UI 启动失败: ${e.message}`);
+    console.error(`✖ Waymark UI 启动失败: ${e.message}`);
     process.exitCode = 1;
   });
   server.on("close", () => {
@@ -93,7 +93,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
   server.listen(port, "127.0.0.1", () => {
     const addr = server.address();
     const p = typeof addr === "object" && addr ? addr.port : port;
-    console.log(`PlanFlow UI: http://localhost:${p}`);
+    console.log(`Waymark UI: http://localhost:${p}`);
   });
   return server;
 }

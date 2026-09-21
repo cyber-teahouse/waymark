@@ -1,23 +1,23 @@
-# planflow
+# waymark
 
 `/plan` 驱动的项目进度工作流可视化 CLI：计划文档 + 代码证据 → 自动推断完成度 → DAG 工作流页面。
 
 ## 快速开始
 
 ```bash
-npm link            # 在本包内：全局注册 planflow 命令
+npm link            # 在本包内：全局注册 waymark 命令
 npm run build && npm run build:web   # 构建 CLI 与页面产物
 
 cd /path/to/your-project
-planflow init       # 生成 plan/ 骨架
-planflow check      # 校验规范（id 唯一 / deps 存在 / 无循环依赖 / 迭代引用 / 总览一致）
-planflow sync       # 生成 .planflow/workflow.json（含证据推断与警示）
-planflow render     # 生成自包含 .planflow/index.html
-planflow ui         # 本地实时页面（watch plan/、证据目录与 git），默认 http://localhost:7300
+waymark init       # 生成 plan/ 骨架
+waymark check      # 校验规范（id 唯一 / deps 存在 / 无循环依赖 / 迭代引用 / 总览一致）
+waymark sync       # 生成 .waymark/workflow.json（含证据推断与警示）
+waymark render     # 生成自包含 .waymark/index.html
+waymark ui         # 本地实时页面（watch plan/、证据目录与 git），默认 http://localhost:7300
 
 # 推进节点（AI agent 友好）
-planflow done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
-planflow ready                     # 列出可开工节点（planned 且依赖已满足）
+waymark done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
+waymark ready                     # 列出可开工节点（planned 且依赖已满足）
 ```
 
 ## /plan 结构

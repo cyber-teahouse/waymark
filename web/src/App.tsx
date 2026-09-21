@@ -4,10 +4,10 @@ import FlowView from "./FlowView";
 import DetailPanel from "./DetailPanel";
 
 declare global {
-  interface Window { __PLANFLOW_DATA__?: WorkflowJson }
+  interface Window { __WAYMARK_DATA__?: WorkflowJson }
 }
 
-const wf = window.__PLANFLOW_DATA__;
+const wf = window.__WAYMARK_DATA__;
 
 /** 进度环：轨道 var(--line)，进度弧 var(--accent)，加载时 400ms 画出（respect prefers-reduced-motion）。 */
 function ProgressRing({ percent }: { percent: number }) {
@@ -44,7 +44,7 @@ function EmptyState() {
         />
       </svg>
       <div className="empty-title">还没有工作流数据</div>
-      <div className="empty-sub">在项目根运行 planflow sync 后刷新</div>
+      <div className="empty-sub">在项目根运行 waymark sync 后刷新</div>
     </div>
   );
 }
@@ -185,12 +185,12 @@ export default function App() {
     <main className="app">
       {errors.length > 0 && (
         <div className="issue-strip" role="alert">
-          <b>{errors.length} 个规范错误</b>（运行 planflow check 查看），如：{errors[0].message}
+          <b>{errors.length} 个规范错误</b>（运行 waymark check 查看），如：{errors[0].message}
         </div>
       )}
       {staleDays >= STALE_DAYS && (
         <div className="stale-strip">
-          数据生成于 {genText}，可能已过期——运行 <code>planflow sync</code> 更新后再刷新本页。
+          数据生成于 {genText}，可能已过期——运行 <code>waymark sync</code> 更新后再刷新本页。
         </div>
       )}
       <header className="topbar">

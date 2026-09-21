@@ -26,14 +26,14 @@ describe("e2e: init → sync → render", () => {
     const stubBundle = '<!doctype html><html><body><div id="root"></div></body></html>';
     const html = renderWorkflowHtml(full.workflow, stubBundle);
     writeIndexHtmlFile(root, html);
-    const written = fs.readFileSync(path.join(root, ".planflow", "index.html"), "utf8");
+    const written = fs.readFileSync(path.join(root, ".waymark", "index.html"), "utf8");
     expect(written).toContain("M1-core");
-    expect(written).toContain("__PLANFLOW_DATA__");
+    expect(written).toContain("__WAYMARK_DATA__");
     expect(written).toContain('<div id="root">');
   });
 });
 
 function writeIndexHtmlFile(root: string, html: string): void {
-  fs.mkdirSync(path.join(root, ".planflow"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".planflow", "index.html"), html, "utf8");
+  fs.mkdirSync(path.join(root, ".waymark"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".waymark", "index.html"), html, "utf8");
 }

@@ -1,10 +1,10 @@
 {
-  "name": "planflow-cli",
+  "name": "waymark-cli",
   "version": "0.1.0",
   "description": "/plan 驱动的项目进度工作流可视化 CLI",
   "type": "module",
   "bin": {
-    "planflow": "dist/cli.js"
+    "waymark": "dist/cli.js"
   },
   "engines": {
     "node": ">=20"

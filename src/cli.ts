@@ -11,7 +11,7 @@ import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewe
 import { markDone, listReady } from "./plan/commands.js";
 
 const program = new Command();
-program.name("planflow").description("/plan 驱动的项目进度工作流可视化")
+program.name("waymark").description("/plan 驱动的项目进度工作流可视化")
   .version("0.1.0").option("--root <dir>", "项目根目录", process.cwd());
 
 program.command("check")
@@ -38,13 +38,13 @@ program.command("check")
   });
 
 program.command("sync")
-  .description("解析 /plan + 代码证据 → 生成 .planflow/workflow.json")
+  .description("解析 /plan + 代码证据 → 生成 .waymark/workflow.json")
   .action(async () => {
     const root = program.opts<{ root: string }>().root;
     const { workflow, issues } = await buildWorkflow(root);
     writeWorkflow(root, workflow);
     const s = workflow.stats;
-    console.log(`✔ workflow.json 已生成: ${path.join(root, ".planflow", "workflow.json")}`);
+    console.log(`✔ workflow.json 已生成: ${path.join(root, ".waymark", "workflow.json")}`);
     console.log(`节点 ${s.total} | 完成 ${s.done} | 进行中 ${s.inProgress} | 未开始 ${s.planned} | 警示 ${s.warnings}`);
     for (const i of issues) {
       console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);
@@ -71,10 +71,10 @@ program.command("done")
       ];
       const errors = issues.filter(i => i.level === "error").length;
       if (errors > 0) {
-        console.warn(`⚠ 当前计划存在 ${errors} 个规范错误（planflow check 查看）`);
+        console.warn(`⚠ 当前计划存在 ${errors} 个规范错误（waymark check 查看）`);
         process.exitCode = 1;
       }
-      console.log("提示：运行 planflow sync 更新工作流数据");
+      console.log("提示：运行 waymark sync 更新工作流数据");
     } catch (e) {
       console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
       process.exitCode = 1;
@@ -97,23 +97,23 @@ program.command("ready")
   });
 
 program.command("render")
-  .description("由 .planflow/workflow.json 生成自包含 index.html")
+  .description("由 .waymark/workflow.json 生成自包含 index.html")
   .action(() => {
     const root = program.opts<{ root: string }>().root;
-    const wfFile = path.join(root, ".planflow", "workflow.json");
+    const wfFile = path.join(root, ".waymark", "workflow.json");
     if (!fs.existsSync(wfFile)) {
-      console.error("✖ 未找到 .planflow/workflow.json，请先运行 planflow sync");
+      console.error("✖ 未找到 .waymark/workflow.json，请先运行 waymark sync");
       process.exitCode = 1;
       return;
     }
     try {
       const workflow = JSON.parse(fs.readFileSync(wfFile, "utf8"));
       if (planNewerThan(root, wfFile)) {
-        console.warn("⚠ plan/ 在 sync 之后有改动，工作流数据可能过期——建议重新 planflow sync");
+        console.warn("⚠ plan/ 在 sync 之后有改动，工作流数据可能过期——建议重新 waymark sync");
       }
       const html = renderWorkflowHtml(workflow, loadBundle());
       writeIndexHtml(root, html);
-      console.log(`✔ 已生成 ${path.join(root, ".planflow", "index.html")}（可直接用浏览器打开）`);
+      console.log(`✔ 已生成 ${path.join(root, ".waymark", "index.html")}（可直接用浏览器打开）`);
     } catch (e) {
       console.error(`✖ ${(e instanceof Error) ? e.message : String(e)}`);
       process.exitCode = 1;

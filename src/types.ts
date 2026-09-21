@@ -105,8 +105,8 @@ export type WorkflowJson = z.infer<typeof WorkflowJsonSchema>;
 
 export const DEFAULT_IGNORES = [
   "**/node_modules/**", "**/.git/**", "**/dist/**", "**/out/**", "**/build/**",
-  "**/bin/**", "**/obj/**", "**/.planflow/**", "**/coverage/**",
+  "**/bin/**", "**/obj/**", "**/.waymark/**", "**/coverage/**",
 ];
 export const IGNORE_DIR_NAMES = [
-  "node_modules", ".git", "dist", "out", "build", "bin", "obj", ".planflow", "coverage",
+  "node_modules", ".git", "dist", "out", "build", "bin", "obj", ".waymark", "coverage",
 ];

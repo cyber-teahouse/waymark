@@ -12,7 +12,7 @@ export function bundlePath(): string {
 export function loadBundle(): string {
   const p = bundlePath();
   if (!fs.existsSync(p)) {
-    throw new Error(`前端产物缺失: ${p} —— 请先在 planflow 包内运行 npm run build:web`);
+    throw new Error(`前端产物缺失: ${p} —— 请先在 waymark 包内运行 npm run build:web`);
   }
   return fs.readFileSync(p, "utf8");
 }
@@ -27,13 +27,13 @@ export function renderWorkflowHtml(workflow: unknown, bundleHtml: string): strin
 }
 
 export function writeWorkflow(root: string, workflow: WorkflowJson): void {
-  const dir = path.join(root, ".planflow");
+  const dir = path.join(root, ".waymark");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "workflow.json"), JSON.stringify(workflow, null, 2), "utf8");
 }
 
 export function writeIndexHtml(root: string, html: string): void {
-  const dir = path.join(root, ".planflow");
+  const dir = path.join(root, ".waymark");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
 }

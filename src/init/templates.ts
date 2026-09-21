@@ -1,6 +1,6 @@
 export const OVERVIEW_MD = `# 项目计划总览
 
-> 本文件是 planflow 的框架文档入口。表格列出全部里程碑，供与 milestones/ 交叉校验。
+> 本文件是 waymark 的框架文档入口。表格列出全部里程碑，供与 milestones/ 交叉校验。
 
 | id | 标题 | 迭代 |
 |----|------|------|

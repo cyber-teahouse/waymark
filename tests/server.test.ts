@@ -29,7 +29,7 @@ describe("server smoke", () => {
     expect(page.status).toBe(200);
     const body = await page.text();
     expect(body).toContain("stub");
-    expect(body).toContain("__PLANFLOW_DATA__");
+    expect(body).toContain("__WAYMARK_DATA__");
 
     const sse = await fetch(`http://127.0.0.1:${port}/events`);
     expect(sse.headers.get("content-type")).toContain("text/event-stream");
