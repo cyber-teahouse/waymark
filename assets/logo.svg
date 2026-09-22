@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
+     font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <!-- 国家公园步道徽章（方形头像版） -->
+  <circle cx="256" cy="256" r="240" fill="#22402f"/>
+  <circle cx="256" cy="256" r="222" fill="none" stroke="#f5f0e6" stroke-width="12" stroke-dasharray="4 16"/>
+  <circle cx="256" cy="256" r="206" fill="#f5f0e6"/>
+  <circle cx="322" cy="196" r="26" fill="#c8501c"/>
+  <path d="M132,330 L226,214 L286,288 L340,208 L424,330 Z" fill="#22402f"/>
+  <text x="256" y="392" text-anchor="middle" font-size="44" font-weight="700"
+        letter-spacing="4" fill="#22402f">WAYMARK</text>
+  <text x="256" y="430" text-anchor="middle" font-size="18" font-weight="600"
+        letter-spacing="5" fill="#c8501c">TRAIL PROGRESS</text>
+</svg>
