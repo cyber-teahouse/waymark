@@ -75,6 +75,7 @@ function PlanNode({ data, selected }: NodeProps) {
         {ready && <span className="node-chip ready">可开工</span>}
         {wf.warning === "evidence-insufficient" && <span className="node-chip">证据不足</span>}
         {wf.warning === "ready-to-complete" && <span className="node-chip">可标记完成</span>}
+        {wf.warning === "stalled" && <span className="node-chip">无进展证据</span>}
         {wf.cycle && <span className="node-chip cyc">循环依赖</span>}
       </div>
       <Handle type="source" position={Position.Right} />

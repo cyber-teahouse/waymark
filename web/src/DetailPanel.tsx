@@ -9,8 +9,12 @@ const KIND_LABEL: Record<string, string> = {
 const WARNING_TEXT: Record<string, string> = {
   "evidence-insufficient": "声明为完成，但证据核验未达标——补充 evidence 或复核状态。",
   "ready-to-complete": "证据已齐备，可将状态更新为 done。",
+  stalled: "声明为进行中，但证据核验为零——确认是否真的开工，或补充 evidence 声明。",
   cycle: "该节点处于循环依赖中，依赖关系需要修复。",
 };
+
+/** file:// 打开的静态页面没有本地服务，写操作按钮不渲染。 */
+const CAN_MUTATE = typeof window !== "undefined" && window.location.protocol !== "file:";
 
 const COMMIT_PREVIEW = 5;
 
@@ -64,6 +68,10 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
   const panelRef = useRef<HTMLElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
   const [showAllCommits, setShowAllCommits] = useState(false);
+  const [busy, setBusy] = useState<null | "start" | "done">(null);
+  const [accAll, setAccAll] = useState(false);
+  const [note, setNote] = useState("");
+  const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // dialog 语义：接管焦点、Esc 关闭、关闭后归还焦点
   useEffect(() => {
@@ -78,6 +86,35 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       prevFocus.current?.focus?.();
     };
   }, [onClose]);
+
+  /** 调本地 ui 服务的写接口（与 CLI/MCP 同一引擎）；成功后由 SSE 推流刷新，定时器兜底。 */
+  async function act(kind: "start" | "done") {
+    if (busy) return;
+    setBusy(kind);
+    setActionMsg(null);
+    try {
+      const resp = await fetch(`/api/${kind}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-waymark": "ui" },
+        body: JSON.stringify(kind === "start"
+          ? { id: node.id }
+          : { id: node.id, allAcceptance: accAll, note: note.trim() || undefined }),
+      });
+      const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
+      if (!resp.ok || !data?.ok) {
+        setActionMsg({ ok: false, text: data?.error ?? `请求失败（${resp.status}）` });
+        setBusy(null);
+        return;
+      }
+      const warns = data.warnings ?? [];
+      const verb = kind === "start" ? "开工" : "标记完成";
+      setActionMsg({ ok: true, text: warns.length ? `已${verb}。注意：${warns.join("；")}` : `已${verb}` });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch {
+      setActionMsg({ ok: false, text: "网络错误——此页面可能不是 waymark ui 服务提供的，操作未生效" });
+      setBusy(null);
+    }
+  }
 
   const warnings: string[] = [];
   if (node.warning) warnings.push(WARNING_TEXT[node.warning]);
@@ -114,8 +151,43 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         )}
       </div>
 
+      {CAN_MUTATE && (node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
+        || node.declaredStatus === "blocked") && (
+        <div className="act-row">
+          {node.declaredStatus === "planned" && (
+            <button className="act-btn primary" disabled={busy !== null} onClick={() => act("start")}>
+              {busy === "start" ? "提交中…" : "认领开工"}
+            </button>
+          )}
+          {node.declaredStatus !== "done" && (
+            <>
+              <button className="act-btn" disabled={busy !== null} onClick={() => act("done")}>
+                {busy === "done" ? "提交中…" : "标记完成"}
+              </button>
+              <label className="act-acc">
+                <input type="checkbox" checked={accAll} onChange={e => setAccAll(e.target.checked)} />
+                同时勾选全部验收
+              </label>
+              <input
+                className="act-note"
+                type="text"
+                placeholder="完成说明（写入「完成记录」，可留空）"
+                aria-label="完成说明"
+                maxLength={200}
+                value={note}
+                onChange={e => setNote(e.target.value)}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {actionMsg && (
+        <div className={`warn-callout${actionMsg.ok ? " ready" : " bad"}`} role="status">{actionMsg.text}</div>
+      )}
+
       {isReady && node.displayStatus === "planned" && (
-        <div className="warn-callout ready">依赖已满足，可以开工——开始后把状态更新为 in-progress。</div>
+        <div className="warn-callout ready">依赖已满足，可以开工——点击上方「认领开工」直接开始。</div>
       )}
 
       {warnings.map((w, i) => (
