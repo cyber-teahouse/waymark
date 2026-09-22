@@ -90,4 +90,21 @@ describe("validatePlan", () => {
     expect(validatePlan({ nodes, iterations: [], graph: buildGraph(nodes) })
       .some(i => i.message.includes("evidence"))).toBe(false);
   });
+  it("warns when done node has unchecked acceptance; silent when all checked", () => {
+    const unchecked = [doc("A", { status: "done", acceptance: ["[x] 一", "[ ] 二"] })];
+    const issues = validatePlan({ nodes: unchecked, iterations: [], graph: buildGraph(unchecked) });
+    expect(issues.some(i => i.level === "warning" && i.message.includes("已完成但有 1 项验收标准未勾选"))).toBe(true);
+    const allChecked = [doc("A", { status: "done", acceptance: ["[x] 一", "[X] 二"] })];
+    expect(validatePlan({ nodes: allChecked, iterations: [], graph: buildGraph(allChecked) })
+      .some(i => i.message.includes("验收标准未勾选"))).toBe(false);
+  });
+  it("warns when overview title drifts from node title", () => {
+    const nodes = [doc("A", { title: "新标题" })];
+    const drifted: OverviewDoc = { file: "plan/overview.md", table: [{ id: "A", title: "旧标题", iteration: "" }] };
+    const issues = validatePlan({ nodes, iterations: [], overview: drifted, graph: buildGraph(nodes) });
+    expect(issues.some(i => i.level === "warning" && i.message.includes("总览表标题"))).toBe(true);
+    const aligned: OverviewDoc = { file: "plan/overview.md", table: [{ id: "A", title: "新标题", iteration: "" }] };
+    expect(validatePlan({ nodes, iterations: [], overview: aligned, graph: buildGraph(nodes) })
+      .some(i => i.message.includes("总览表标题"))).toBe(false);
+  });
 });

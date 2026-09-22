@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { simpleGit } from "simple-git";
-import { scoreGit } from "../src/infer/scoreGit.js";
+import { scoreGit, loadGitSnapshot } from "../src/infer/scoreGit.js";
 
 let repo: string;
 let plain: string;
@@ -51,5 +51,31 @@ describe("scoreGit", () => {
   it("invalid regex is skipped", async () => {
     const r = await scoreGit(repo, ["([bad"]);
     expect(r.check.skipped).toBe(true);
+  });
+});
+
+describe("loadGitSnapshot（批量共享，避免每节点一次 git 进程）", () => {
+  it("snapshot path produces identical results to direct path", async () => {
+    const snap = await loadGitSnapshot(repo);
+    expect(snap.ok).toBe(true);
+    const direct = await scoreGit(repo, ["core|骨架"]);
+    const batched = await scoreGit(repo, ["core|骨架"], snap);
+    expect(batched.check).toEqual(direct.check);
+    expect(batched.commits).toEqual(direct.commits);
+    // 无命中时同样一致
+    expect((await scoreGit(repo, ["zzz"], snap)).check.score).toBe(0);
+  });
+  it("non-repo snapshot carries detail; scoreGit consumes it as skipped", async () => {
+    const snap = await loadGitSnapshot(plain);
+    expect(snap.ok).toBe(false);
+    expect(snap.detail).toBe("非 git 仓库");
+    const r = await scoreGit(plain, ["core"], snap);
+    expect(r.check).toMatchObject({ skipped: true, score: 0, detail: "非 git 仓库" });
+  });
+  it("empty repo snapshot reports 仓库无 commit through the snapshot path", async () => {
+    const snap = await loadGitSnapshot(emptyRepo);
+    expect(snap.detail).toBe("仓库无 commit");
+    const r = await scoreGit(emptyRepo, ["core"], snap);
+    expect(r.check.detail).toBe("仓库无 commit");
   });
 });

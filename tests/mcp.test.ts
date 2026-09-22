@@ -44,7 +44,7 @@ async function makeTempSample(): Promise<string> {
 }
 
 describe("waymark mcp server", () => {
-  it("listTools exposes the 5 tools with non-empty descriptions", async () => {
+  it("listTools exposes the 6 tools with non-empty descriptions", async () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
     const { tools } = await client.listTools();
@@ -115,6 +115,8 @@ describe("waymark mcp server", () => {
     });
     const doneObj = jsonOf(done as ToolResult);
     expect(doneObj.message).toContain("waymark_summary");
+    // 写操作直接带回下一步可开工节点，agent 免一次额外往返
+    expect(doneObj.readyNext.map((i: { id: string }) => i.id)).toEqual(["M3-login"]);
 
     // 通过 get_node 验证声明状态已变为 done
     const node = jsonOf(await client.callTool({
@@ -125,6 +127,37 @@ describe("waymark mcp server", () => {
     // M3-login 的依赖 M2-auth 已完成 → 可开工
     const ready = jsonOf(await client.callTool({ name: "waymark_list_ready", arguments: {} }) as ToolResult);
     expect(ready.items.map((i: { id: string }) => i.id)).toEqual(["M3-login"]);
+    await client.close();
+    await server.close();
+  });
+
+  it("waymark_start_node claims a ready node; non-planned node is an error", async () => {
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+    // 先完成 M2 → M3 变为可开工
+    await client.callTool({ name: "waymark_mark_done", arguments: { id: "M2-auth", allAcceptance: true } });
+    const started = jsonOf(await client.callTool({
+      name: "waymark_start_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(started.warnings).toEqual([]);
+    const node = jsonOf(await client.callTool({
+      name: "waymark_get_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(node.declaredStatus).toBe("in-progress");
+    // 已完成节点不可再认领
+    const bad = await client.callTool({ name: "waymark_start_node", arguments: { id: "M2-auth" } });
+    expect(bad.isError).toBe(true);
+    await client.close();
+    await server.close();
+  });
+
+  it("waymark_mark_done returns guardrail warnings (deps/acceptance)", async () => {
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+    const done = jsonOf(await client.callTool({
+      name: "waymark_mark_done", arguments: { id: "M2-auth" },
+    }) as ToolResult);
+    expect(done.warnings.some((w: string) => w.includes("验收标准未勾选"))).toBe(true);
     await client.close();
     await server.close();
   });

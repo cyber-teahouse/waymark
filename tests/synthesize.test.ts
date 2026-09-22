@@ -28,6 +28,11 @@ describe("computeDisplay 矩阵", () => {
     expect(computeDisplay("planned", "in-progress", true))
       .toEqual({ displayStatus: "planned", warning: null });
   });
+  it("declared in-progress + zero evidence → stalled; partial evidence → no warning", () => {
+    expect(computeDisplay("in-progress", "planned", true))
+      .toEqual({ displayStatus: "in-progress", warning: "stalled" });
+    expect(computeDisplay("in-progress", "in-progress", true).warning).toBeNull();
+  });
   it("display never overrides declared", () => {
     for (const declared of ["planned", "in-progress", "done", "blocked", "dropped"] as const) {
       expect(computeDisplay(declared, "done", true).displayStatus).toBe(declared);

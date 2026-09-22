@@ -47,3 +47,25 @@ describe("scoreGrep", () => {
     expect(scoreGrep(root, ["zqxwvToken"], ["plan/**"]).check.score).toBe(1);
   });
 });
+
+describe("scoreGrep 共享文件缓存（构建内一次遍历）", () => {
+  it("cache path produces identical results to direct path", () => {
+    const cache = new Map<string, string[]>();
+    const direct = scoreGrep(root, ["coreInit"]);
+    const batched = scoreGrep(root, ["coreInit"], [], cache);
+    expect(batched.check).toEqual(direct.check);
+    expect(batched.sampleHits).toEqual(direct.sampleHits);
+    // scope 不同 → 不同缓存槽，互不污染
+    expect(scoreGrep(root, ["coreInit"], ["src/auth/**"], cache).check.score).toBe(0);
+    // 同一 scope 第二次调用命中缓存，结果一致
+    expect(scoreGrep(root, ["coreInit"], [], cache).check).toEqual(direct.check);
+  });
+  it("cache intentionally serves the snapshot from build start (files changed mid-build stay stale)", () => {
+    const cache = new Map<string, string[]>();
+    expect(scoreGrep(root, ["neverMatchedTokenX"], [], cache).check.score).toBe(0);
+    fs.writeFileSync(path.join(root, "late-file.ts"), "neverMatchedTokenX\n");
+    // 同一构建内：缓存未失效，改文件不影响本次结果（新构建会用新缓存重新遍历）
+    expect(scoreGrep(root, ["neverMatchedTokenX"], [], cache).check.score).toBe(0);
+    expect(scoreGrep(root, ["neverMatchedTokenX"]).check.score).toBe(1);
+  });
+});

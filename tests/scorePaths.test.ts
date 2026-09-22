@@ -50,4 +50,11 @@ describe("scoreTests", () => {
     expect(c.ok).toBe(false);
     expect(c.detail).toBe("测试文件缺失: tests/none/**");
   });
+  it("partial hit gives fractional score (capped at 0.5 overall) and names misses", () => {
+    const c = scoreTests(root, ["tests/auth/**", "tests/none/**"]);
+    expect(c.score).toBeCloseTo(0.25);
+    expect(c.ok).toBe(false);
+    expect(c.detail).toContain("tests/none/**");
+    expect(c.detail).toContain("1/2");
+  });
 });

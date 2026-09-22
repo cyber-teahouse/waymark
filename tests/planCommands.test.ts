@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { makeSampleProject } from "./helpers.js";
-import { markDone, listReady } from "../src/plan/commands.js";
+import { markDone, listReady, startNode } from "../src/plan/commands.js";
 import { loadPlan } from "../src/parser/parsePlan.js";
 
 function makeTinyProject(dest: string): void {
@@ -51,6 +51,67 @@ describe("markDone", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-done4-"));
     makeTinyProject(root);
     expect(() => markDone(root, "NOPE")).toThrow(/未找到节点/);
+  });
+});
+
+describe("startNode", () => {
+  it("flips planned → in-progress with no warnings when deps satisfied", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-start-"));
+    makeTinyProject(root);
+    const { warnings } = startNode(root, "B-app");
+    expect(warnings).toEqual([]);
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
+    expect(text).toMatch(/^status: in-progress$/m);
+    // 其余内容不动
+    expect(text).toMatch(/deps: \[A-base\]/);
+  });
+  it("warns (but allows) when deps unmet", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-start2-"));
+    makeTinyProject(root);
+    const aFile = path.join(root, "plan", "milestones", "A.md");
+    fs.writeFileSync(aFile, fs.readFileSync(aFile, "utf8").replace("status: done", "status: in-progress"));
+    const { warnings } = startNode(root, "B-app");
+    expect(warnings.some(w => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8"))
+      .toMatch(/^status: in-progress$/m);
+  });
+  it("throws when node is not planned", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-start3-"));
+    makeTinyProject(root);
+    expect(() => startNode(root, "A-base")).toThrow(/仅 planned/);
+    expect(() => startNode(root, "NOPE")).toThrow(/未找到节点/);
+  });
+});
+
+describe("markDone 护栏警告", () => {
+  it("warns on unfinished deps and unchecked acceptance", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard-"));
+    makeTinyProject(root);
+    const aFile = path.join(root, "plan", "milestones", "A.md");
+    fs.writeFileSync(aFile, fs.readFileSync(aFile, "utf8").replace("status: done", "status: in-progress"));
+    const { warnings } = markDone(root, "B-app", { date: "2026-09-22" });
+    expect(warnings.some(w => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
+    expect(warnings.some(w => w.includes("验收标准未勾选"))).toBe(true);
+  });
+  it("no warnings when deps done and --acc given", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard2-"));
+    makeTinyProject(root);
+    const { warnings } = markDone(root, "B-app", { allAcceptance: true, date: "2026-09-22" });
+    expect(warnings).toEqual([]);
+  });
+  it("warns when previous status is blocked", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard3-"));
+    makeTinyProject(root);
+    const bFile = path.join(root, "plan", "milestones", "B.md");
+    fs.writeFileSync(bFile, fs.readFileSync(bFile, "utf8").replace("status: planned", "status: blocked"));
+    const { warnings } = markDone(root, "B-app", { allAcceptance: true });
+    expect(warnings.some(w => w.includes("原状态为 blocked"))).toBe(true);
+  });
+  it("warns when node was already done", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard4-"));
+    makeTinyProject(root);
+    const { warnings } = markDone(root, "A-base", { note: "重复标记", date: "2026-09-22" });
+    expect(warnings.some(w => w.includes("此前已是 done"))).toBe(true);
   });
 });
 

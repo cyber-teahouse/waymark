@@ -60,4 +60,16 @@ describe("planNewerThan（含证据目录）", () => {
       .toBeGreaterThanOrEqual(dirNewestMtime(path.join(root, "src", "core")));
     expect(dirNewestMtime(path.join(root, "no-such-dir"))).toBe(0);
   });
+
+  it("dirNewestMtime 跳过 node_modules 等忽略目录", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-render6-"));
+    await makeSampleProject(root);
+    const nm = path.join(root, "src", "core", "node_modules", "big");
+    fs.mkdirSync(nm, { recursive: true });
+    const futureSec = Date.now() / 1000 + 3600;
+    const deep = path.join(nm, "f.js");
+    fs.writeFileSync(deep, "x");
+    fs.utimesSync(deep, futureSec, futureSec);
+    expect(dirNewestMtime(path.join(root, "src", "core"))).toBeLessThan(futureSec * 1000);
+  });
 });
