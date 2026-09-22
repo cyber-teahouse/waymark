@@ -8,6 +8,7 @@ import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
 import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
 import { markDone, listReady, startNode } from "./plan/commands.js";
+import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 
 /**
  * 创建一套全新的命令树。每次 runCli 调用都新建 program，
@@ -179,6 +180,33 @@ export function createProgram(): Command {
       const root = rootOf(cmd);
       const { startMcpServer } = await import("./mcp/server.js");
       await startMcpServer(root);
+    });
+
+  withRoot(program.command("hub"))
+    .description("聚合多个项目的进度为一张总览页（在项目们的父目录运行）")
+    .argument("[patterns...]", "项目目录 glob，默认 --root 下的一级子目录")
+    .option("-o, --out <file>", "输出文件路径（相对 --root 解析）", path.join(".waymark", "hub.html"))
+    .action((patterns: string[], opts: { out: string }, cmd: Command) => {
+      try {
+        const root = rootOf(cmd);
+        const rootUrl = root.replace(/\\/g, "/").replace(/\/+$/, "");
+        const abs = (p: string): string =>
+          path.isAbsolute(p) ? p.replace(/\\/g, "/") : `${rootUrl}/${p.replace(/\\/g, "/")}`;
+        const entries = gatherHubData((patterns.length > 0 ? patterns : ["*"]).map(abs));
+        const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        fs.writeFileSync(outFile, renderHubHtml(entries, new Date().toISOString()), "utf8");
+        const synced = entries.filter(e => e.found).length;
+        console.log(`✔ hub 总览已生成: ${outFile}`);
+        console.log(`项目 ${entries.length} | 已同步 ${synced} | 未同步 ${entries.length - synced}`);
+        for (const e of entries) {
+          if (!e.found) console.log(`  ⚠ ${e.name}: ${e.error}`);
+          else if (!e.pagePath) console.log(`  ⚠ ${e.name}: 页面未渲染（waymark render）`);
+        }
+      } catch (e) {
+        console.error(`✖ ${(e as Error).message}`);
+        process.exitCode = 1;
+      }
     });
 
   withRoot(program.command("init"))
