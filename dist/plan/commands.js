@@ -19,6 +19,18 @@ function unmetDeps(plan, deps) {
         return s !== undefined && s !== "done" && s !== "dropped";
     });
 }
+/** 在「完成记录」区块头部插入一行 `- <date> <text>`；无区块时在文末追加该区块。 */
+function insertCompletionNote(body, date, text) {
+    const secRe = /^##\s+完成记录\s*$/m;
+    const sec = secRe.exec(body);
+    if (!sec) {
+        return body.replace(/\s*$/, `\n\n## 完成记录\n- ${date} ${text}\n`);
+    }
+    const after = body.slice(sec.index + sec[0].length);
+    const next = /^##\s+/m.exec(after);
+    const insertAt = sec.index + sec[0].length + (next ? next.index : after.length);
+    return `${body.slice(0, insertAt)}\n- ${date} ${text}${body.slice(insertAt)}`;
+}
 /** 把节点标记为完成：status → done，可选勾全部验收、追加完成记录行。只动 frontmatter 的 status/acceptance 与完成记录区块。 */
 export function markDone(root, id, opts = {}) {
     const plan = loadPlan(root);
@@ -37,19 +49,7 @@ export function markDone(root, id, opts = {}) {
     })();
     const date = opts.date ?? today();
     const note = opts.note?.trim().replace(/\r?\n+/g, " ");
-    const nextBody = (() => {
-        if (!note)
-            return body;
-        const secRe = /^##\s+完成记录\s*$/m;
-        const sec = secRe.exec(body);
-        if (!sec) {
-            return body.replace(/\s*$/, `\n\n## 完成记录\n- ${date} ${note}\n`);
-        }
-        const after = body.slice(sec.index + sec[0].length);
-        const next = /^##\s+/m.exec(after);
-        const insertAt = sec.index + sec[0].length + (next ? next.index : after.length);
-        return `${body.slice(0, insertAt)}\n- ${date} ${note}${body.slice(insertAt)}`;
-    })();
+    const nextBody = note ? insertCompletionNote(body, date, note) : body;
     fs.writeFileSync(abs, `---\n${nextFm}\n---\n${nextBody}`, "utf8");
     // 护栏警告：不阻止完成，但把可疑之处亮出来（对 agent 误操作的主要防线）
     const warnings = [];
@@ -87,6 +87,59 @@ export function startNode(root, id) {
     if (unmet.length)
         warnings.push(`依赖未完成: ${unmet.join("、")}——建议先完成依赖节点（waymark ready 查看可开工节点）`);
     return { file: doc.file, warnings };
+}
+/** 旁路/撤销状态变更的公共实现：改 frontmatter status + 可选完成记录行。
+ *  目标状态与当前相同且无说明时不改写文件（幂等）。 */
+function changeStatus(root, id, to, opts, logTag) {
+    const plan = loadPlan(root);
+    const doc = plan.nodes.find(n => n.fm.id === id);
+    if (!doc)
+        throw new Error(`未找到节点: ${id}`);
+    const abs = path.join(root, doc.file);
+    const raw = fs.readFileSync(abs, "utf8");
+    const { fm, body } = splitFrontmatter(raw);
+    const warnings = [];
+    if (doc.fm.status === to) {
+        warnings.push(`此前已是 ${to}——本次仅可能补充记录`);
+    }
+    else if (doc.fm.status === "done" && (to === "blocked" || to === "dropped")) {
+        warnings.push("节点已完成——改为旁路状态前请确认不是误操作");
+    }
+    const note = opts.note?.trim().replace(/\r?\n+/g, " ");
+    const date = opts.date ?? today();
+    if (doc.fm.status === to && !note) {
+        return { file: doc.file, warnings };
+    }
+    const nextFm = fm.replace(/^status:\s*.*$/m, `status: ${to}`);
+    const nextBody = note ? insertCompletionNote(body, date, `[${logTag}] ${note}`) : body;
+    fs.writeFileSync(abs, `---\n${nextFm}\n---\n${nextBody}`, "utf8");
+    return { file: doc.file, warnings };
+}
+/** 标记受阻：任意状态 → blocked（旁路，可 reopen 恢复）。 */
+export function blockNode(root, id, opts = {}) {
+    return changeStatus(root, id, "blocked", opts, "blocked");
+}
+/** 放弃节点：任意状态 → dropped（旁路，不再视为可开工/待办）。 */
+export function dropNode(root, id, opts = {}) {
+    return changeStatus(root, id, "dropped", opts, "dropped");
+}
+/** 重新打开：done/blocked/dropped → in-progress（撤销误操作；--planned 退回未开始）。 */
+export function reopenNode(root, id, opts = {}) {
+    const plan = loadPlan(root);
+    const doc = plan.nodes.find(n => n.fm.id === id);
+    if (!doc)
+        throw new Error(`未找到节点: ${id}`);
+    if (doc.fm.status === "planned") {
+        if (opts.planned) {
+            return changeStatus(root, id, "planned", opts, "reopened");
+        }
+        throw new Error(`${id} 当前为 planned，无需重新打开（认领开工用 waymark start）`);
+    }
+    if (doc.fm.status === "in-progress" && !opts.note) {
+        return { file: doc.file, warnings: ["已是 in-progress——本次仅可能补充记录"] };
+    }
+    const to = opts.planned ? "planned" : "in-progress";
+    return changeStatus(root, id, to, opts, "reopened");
 }
 /** 可开工节点：planned 且依赖全部 done/dropped（缺失的依赖视为满足，由 check 另行报错）。 */
 export function listReady(root) {

@@ -35,3 +35,22 @@ describe("CLI --root 位置", () => {
     spy.mockRestore();
   });
 });
+
+describe("block/drop/reopen 命令接线", () => {
+  it("block 后 reopen，控制台输出状态且文件落库", async () => {
+    const root = await makeValidProject();
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli(["--root", root, "block", "M3-login", "-m", "等待设计稿"]);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("已标记受阻"));
+
+    spy.mockClear();
+    await runCli(["--root", root, "reopen", "M3-login"]);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("已重新打开（in-progress"));
+    spy.mockRestore();
+
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "M3-登录.md"), "utf8");
+    expect(text).toMatch(/^status: in-progress$/m);
+    expect(text).toContain("[blocked] 等待设计稿");
+  });
+});

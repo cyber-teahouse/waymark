@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { makeSampleProject } from "./helpers.js";
-import { markDone, listReady, startNode } from "../src/plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "../src/plan/commands.js";
 import { loadPlan } from "../src/parser/parsePlan.js";
 
 function makeTinyProject(dest: string): void {
@@ -133,5 +133,94 @@ describe("listReady", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-ready3-"));
     await makeSampleProject(root);
     expect(listReady(root)).toEqual([]);
+  });
+});
+
+describe("blockNode / dropNode（旁路状态）", () => {
+  it("block: planned → blocked and appends [blocked] note", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-block-"));
+    makeTinyProject(root);
+    const { file, warnings } = blockNode(root, "B-app", { note: "等待平台选型", date: "2026-09-23" });
+    expect(file).toBe("plan/milestones/B.md");
+    expect(warnings).toEqual([]);
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
+    expect(text).toMatch(/^status: blocked$/m);
+    expect(text).toContain("- 2026-09-23 [blocked] 等待平台选型");
+    expect(text).toContain("应用层。");
+  });
+  it("block on already-blocked node no-ops with a warning", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-block2-"));
+    makeTinyProject(root);
+    blockNode(root, "B-app", { date: "2026-09-23" });
+    const before = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
+    const { warnings } = blockNode(root, "B-app", { date: "2026-09-24" });
+    expect(warnings.some(w => w.includes("已是 blocked"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toBe(before);
+  });
+  it("block on done node warns 复核 but proceeds", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-block3-"));
+    makeTinyProject(root);
+    const { warnings } = blockNode(root, "A-base", { date: "2026-09-23" });
+    expect(warnings.some(w => w.includes("已完成"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8"))
+      .toMatch(/^status: blocked$/m);
+  });
+  it("drop: in-progress → dropped with [dropped] note", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-drop-"));
+    makeTinyProject(root);
+    startNode(root, "B-app");
+    const { warnings } = dropNode(root, "B-app", { note: "需求砍掉", date: "2026-09-23" });
+    expect(warnings).toEqual([]);
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
+    expect(text).toMatch(/^status: dropped$/m);
+    expect(text).toContain("- 2026-09-23 [dropped] 需求砍掉");
+  });
+  it("throws on unknown id", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-block4-"));
+    makeTinyProject(root);
+    expect(() => blockNode(root, "NOPE")).toThrow(/未找到节点/);
+    expect(() => dropNode(root, "NOPE")).toThrow(/未找到节点/);
+  });
+});
+
+describe("reopenNode（撤销旁路/完成）", () => {
+  it("done → in-progress by default with [reopened] note", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen-"));
+    makeTinyProject(root);
+    const { warnings } = reopenNode(root, "A-base", { note: "返工", date: "2026-09-23" });
+    expect(warnings).toEqual([]);
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8");
+    expect(text).toMatch(/^status: in-progress$/m);
+    expect(text).toContain("- 2026-09-23 [reopened] 返工");
+  });
+  it("restores to planned with --planned", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen2-"));
+    makeTinyProject(root);
+    reopenNode(root, "A-base", { planned: true });
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8"))
+      .toMatch(/^status: planned$/m);
+  });
+  it("blocked → in-progress", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen3-"));
+    makeTinyProject(root);
+    blockNode(root, "B-app", { date: "2026-09-23" });
+    const { warnings } = reopenNode(root, "B-app");
+    expect(warnings).toEqual([]);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8"))
+      .toMatch(/^status: in-progress$/m);
+  });
+  it("on planned node throws（用 start 认领开工）", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen4-"));
+    makeTinyProject(root);
+    expect(() => reopenNode(root, "B-app")).toThrow(/planned，无需重新打开/);
+  });
+  it("on in-progress node no-ops with a warning", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen5-"));
+    makeTinyProject(root);
+    startNode(root, "B-app");
+    const before = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
+    const { warnings } = reopenNode(root, "B-app");
+    expect(warnings.some(w => w.includes("已是 in-progress"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toBe(before);
   });
 });

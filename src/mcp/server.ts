@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { markDone, listReady, startNode } from "../plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "../plan/commands.js";
 import { collectPlanIssues } from "../plan/check.js";
 import { getVersion } from "../version.js";
 import { getWorkflowCached } from "./workflowCache.js";
@@ -65,6 +65,50 @@ export function createMcpServer(root: string): McpServer {
     const { file, warnings } = startNode(root, id);
     return jsonText({
       message: "已标记为 in-progress，完成后调用 waymark_mark_done 收尾",
+      file,
+      warnings,
+      readyNext: listReady(root),
+    });
+  });
+
+  server.registerTool("waymark_block_node", {
+    description: "把节点标记为受阻 blocked（旁路状态；解除后用 waymark_reopen_node 恢复）",
+    inputSchema: { id: z.string().min(1), note: z.string().optional() },
+  }, async ({ id, note }) => {
+    const { file, warnings } = blockNode(root, id, { note });
+    return jsonText({
+      message: "已标记为 blocked——阻塞解除后调用 waymark_reopen_node 恢复",
+      file,
+      warnings,
+      readyNext: listReady(root),
+    });
+  });
+
+  server.registerTool("waymark_drop_node", {
+    description: "放弃节点：标记为 dropped（旁路状态，不再计入待办）",
+    inputSchema: { id: z.string().min(1), note: z.string().optional() },
+  }, async ({ id, note }) => {
+    const { file, warnings } = dropNode(root, id, { note });
+    return jsonText({
+      message: "已标记为 dropped——需求恢复时用 waymark_reopen_node 恢复",
+      file,
+      warnings,
+    });
+  });
+
+  server.registerTool("waymark_reopen_node", {
+    description: "重新打开 done/blocked/dropped 节点（撤销误操作）：默认恢复为 in-progress，planned=true 退回未开始",
+    inputSchema: {
+      id: z.string().min(1),
+      planned: z.boolean().optional(),
+      note: z.string().optional(),
+    },
+  }, async ({ id, planned, note }) => {
+    const { file, warnings } = reopenNode(root, id, { planned, note });
+    return jsonText({
+      message: planned
+        ? "已恢复为 planned（认领开工用 waymark_start_node）"
+        : "已恢复为 in-progress——完成后调用 waymark_mark_done 收尾",
       file,
       warnings,
       readyNext: listReady(root),

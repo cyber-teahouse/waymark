@@ -7,7 +7,7 @@ import { collectPlanIssues } from "./plan/check.js";
 import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
 import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
-import { markDone, listReady, startNode } from "./plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "./plan/commands.js";
 import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 /**
  * 创建一套全新的命令树。每次 runCli 调用都新建 program，
@@ -88,6 +88,58 @@ export function createProgram() {
                 process.exitCode = 1;
             }
             console.log("提示：运行 waymark sync 更新工作流数据");
+        }
+        catch (e) {
+            console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+            process.exitCode = 1;
+        }
+    });
+    withRoot(program.command("block"))
+        .description("把节点标记为受阻 blocked（旁路状态，解除后用 waymark reopen 恢复）")
+        .argument("<id>", "节点 id")
+        .option("-m, --note <text>", "阻塞说明（追加到「完成记录」，带 [blocked] 前缀）")
+        .action((id, opts, cmd) => {
+        try {
+            const root = rootOf(cmd);
+            const { file, warnings } = blockNode(root, id, { note: opts.note });
+            console.log(`✔ ${id} 已标记受阻（${file}）`);
+            for (const w of warnings)
+                console.warn(`⚠ ${w}`);
+        }
+        catch (e) {
+            console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+            process.exitCode = 1;
+        }
+    });
+    withRoot(program.command("drop"))
+        .description("放弃节点：标记为 dropped（旁路状态，不再计入待办）")
+        .argument("<id>", "节点 id")
+        .option("-m, --note <text>", "放弃原因（追加到「完成记录」，带 [dropped] 前缀）")
+        .action((id, opts, cmd) => {
+        try {
+            const root = rootOf(cmd);
+            const { file, warnings } = dropNode(root, id, { note: opts.note });
+            console.log(`✔ ${id} 已放弃（dropped，${file}）`);
+            for (const w of warnings)
+                console.warn(`⚠ ${w}`);
+        }
+        catch (e) {
+            console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+            process.exitCode = 1;
+        }
+    });
+    withRoot(program.command("reopen"))
+        .description("重新打开 done/blocked/dropped 节点（撤销误操作，恢复为 in-progress）")
+        .argument("<id>", "节点 id")
+        .option("--planned", "恢复为 planned 而非 in-progress（退回未开始）")
+        .option("-m, --note <text>", "说明（追加到「完成记录」，带 [reopened] 前缀）")
+        .action((id, opts, cmd) => {
+        try {
+            const root = rootOf(cmd);
+            const { file, warnings } = reopenNode(root, id, { planned: opts.planned, note: opts.note });
+            console.log(`✔ ${id} 已重新打开（${opts.planned ? "planned" : "in-progress"}，${file}）`);
+            for (const w of warnings)
+                console.warn(`⚠ ${w}`);
         }
         catch (e) {
             console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);

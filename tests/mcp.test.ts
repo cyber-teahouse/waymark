@@ -15,6 +15,9 @@ const TOOL_NAMES = [
   "waymark_list_ready",
   "waymark_start_node",
   "waymark_mark_done",
+  "waymark_block_node",
+  "waymark_drop_node",
+  "waymark_reopen_node",
   "waymark_check",
 ];
 
@@ -44,7 +47,7 @@ async function makeTempSample(): Promise<string> {
 }
 
 describe("waymark mcp server", () => {
-  it("listTools exposes the 6 tools with non-empty descriptions", async () => {
+  it("listTools exposes the 9 tools with non-empty descriptions", async () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
     const { tools } = await client.listTools();
@@ -192,6 +195,44 @@ describe("workflow cache（MCP 工具共享）", () => {
     fs.appendFileSync(path.join(root, "plan", "milestones", "M3-登录.md"), "\n补充说明\n");
     await client.callTool({ name: "waymark_summary", arguments: {} });
     expect(getWorkflowCacheStats().rebuilds).toBe(afterFirst + 1);
+
+    await client.close();
+    await server.close();
+  });
+});
+
+describe("waymark 旁路与撤销工具", () => {
+  it("waymark_block_node → waymark_reopen_node 状态往返，drop 落库", async () => {
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+
+    // M3-login planned → blocked（带说明）
+    const blocked = jsonOf(await client.callTool({
+      name: "waymark_block_node", arguments: { id: "M3-login", note: "等待设计稿" },
+    }) as ToolResult);
+    expect(blocked.message).toContain("blocked");
+    const node1 = jsonOf(await client.callTool({
+      name: "waymark_get_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(node1.declaredStatus).toBe("blocked");
+    expect(node1.completionLog.some((l: { text: string }) => l.text.includes("[blocked] 等待设计稿"))).toBe(true);
+
+    // blocked → reopen → in-progress
+    const reopened = jsonOf(await client.callTool({
+      name: "waymark_reopen_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(reopened.message).toContain("in-progress");
+    const node2 = jsonOf(await client.callTool({
+      name: "waymark_get_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(node2.declaredStatus).toBe("in-progress");
+
+    // in-progress → drop → dropped
+    await client.callTool({ name: "waymark_drop_node", arguments: { id: "M3-login" } });
+    const node3 = jsonOf(await client.callTool({
+      name: "waymark_get_node", arguments: { id: "M3-login" },
+    }) as ToolResult);
+    expect(node3.declaredStatus).toBe("dropped");
 
     await client.close();
     await server.close();

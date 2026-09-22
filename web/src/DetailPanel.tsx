@@ -68,7 +68,7 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
   const panelRef = useRef<HTMLElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
   const [showAllCommits, setShowAllCommits] = useState(false);
-  const [busy, setBusy] = useState<null | "start" | "done">(null);
+  const [busy, setBusy] = useState<null | "start" | "done" | "block" | "drop" | "reopen">(null);
   const [accAll, setAccAll] = useState(false);
   const [note, setNote] = useState("");
   const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -88,7 +88,7 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
   }, [onClose]);
 
   /** 调本地 ui 服务的写接口（与 CLI/MCP 同一引擎）；成功后由 SSE 推流刷新，定时器兜底。 */
-  async function act(kind: "start" | "done") {
+  async function act(kind: "start" | "done" | "block" | "drop" | "reopen") {
     if (busy) return;
     setBusy(kind);
     setActionMsg(null);
@@ -96,9 +96,9 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       const resp = await fetch(`/api/${kind}`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-waymark": "ui" },
-        body: JSON.stringify(kind === "start"
-          ? { id: node.id }
-          : { id: node.id, allAcceptance: accAll, note: note.trim() || undefined }),
+        body: JSON.stringify(kind === "done"
+          ? { id: node.id, allAcceptance: accAll, note: note.trim() || undefined }
+          : { id: node.id }),
       });
       const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
       if (!resp.ok || !data?.ok) {
@@ -107,7 +107,10 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         return;
       }
       const warns = data.warnings ?? [];
-      const verb = kind === "start" ? "开工" : "标记完成";
+      const verb = {
+        start: "开工", done: "标记完成",
+        block: "标记受阻", drop: "放弃", reopen: "重新打开",
+      }[kind];
       setActionMsg({ ok: true, text: warns.length ? `已${verb}。注意：${warns.join("；")}` : `已${verb}` });
       setTimeout(() => window.location.reload(), 1500);
     } catch {
@@ -151,19 +154,46 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         )}
       </div>
 
-      {CAN_MUTATE && (node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
-        || node.declaredStatus === "blocked") && (
+      {CAN_MUTATE && (
         <div className="act-row">
           {node.declaredStatus === "planned" && (
             <button className="act-btn primary" disabled={busy !== null} onClick={() => act("start")}>
               {busy === "start" ? "提交中…" : "认领开工"}
             </button>
           )}
-          {node.declaredStatus !== "done" && (
+          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
+            || node.declaredStatus === "blocked") && (
+            <button className="act-btn" disabled={busy !== null} onClick={() => act("done")}>
+              {busy === "done" ? "提交中…" : "标记完成"}
+            </button>
+          )}
+          {(node.declaredStatus === "done" || node.declaredStatus === "blocked"
+            || node.declaredStatus === "dropped") && (
+            <button className="act-btn" disabled={busy !== null} onClick={() => act("reopen")}>
+              {busy === "reopen" ? "提交中…" : "重新打开"}
+            </button>
+          )}
+          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress") && (
+            <button
+              className="act-btn subtle"
+              title="标记为受阻（旁路状态，解除后可重新打开）"
+              disabled={busy !== null} onClick={() => act("block")}
+            >
+              {busy === "block" ? "提交中…" : "受阻"}
+            </button>
+          )}
+          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
+            || node.declaredStatus === "blocked") && (
+            <button
+              className="act-btn subtle danger"
+              title="放弃该节点（dropped 旁路状态，不再计入待办）"
+              disabled={busy !== null} onClick={() => act("drop")}
+            >
+              {busy === "drop" ? "提交中…" : "放弃"}
+            </button>
+          )}
+          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress") && (
             <>
-              <button className="act-btn" disabled={busy !== null} onClick={() => act("done")}>
-                {busy === "done" ? "提交中…" : "标记完成"}
-              </button>
               <label className="act-acc">
                 <input type="checkbox" checked={accAll} onChange={e => setAccAll(e.target.checked)} />
                 同时勾选全部验收

@@ -139,4 +139,27 @@ describe("mutation api（POST /api/start、/api/done）", () => {
 
     await close(server);
   });
+
+
+  it("POST /api/block、/api/reopen 旁路与撤销闭环", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-api5-"));
+    await makeSampleProject(root);
+    const { server, port } = await listen(root);
+
+    const b = await post(port, "/api/block", { id: "M3-login", note: "等待设计稿" }, { "x-waymark": "ui" });
+    expect(b.status).toBe(200);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M3-登录.md"), "utf8"))
+      .toMatch(/^status: blocked/m);
+
+    const r = await post(port, "/api/reopen", { id: "M3-login" }, { "x-waymark": "ui" });
+    expect(r.status).toBe(200);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M3-登录.md"), "utf8"))
+      .toMatch(/^status: in-progress/m);
+
+    // 未知接口给出明确错误而非静默
+    const bad = await post(port, "/api/nope", { id: "M3-login" }, { "x-waymark": "ui" });
+    expect(bad.status).toBe(400);
+
+    await close(server);
+  });
 });

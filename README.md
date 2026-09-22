@@ -26,7 +26,7 @@
 | 📄 **文档即数据源** | 一个节点一个 Markdown 文件（frontmatter 声明状态/依赖/验收/证据），无数据库、无账号 |
 | 🔍 **证据四维推断** | `paths` / `grep` / `tests` / `git` 四类代码证据打分，自动推断节点完成度 |
 | ⚖️ **冲突只警示** | 推断不覆盖声明：证据不足 ⚠、可标记完成 💡、无进展证据 🛑，高亮提示但不篡改你的计划 |
-| 🤖 **AI agent 闭环** | `start` 认领开工、`ready` 查可开工节点、`done` 收尾并追加完成记录（带护栏警告），配合 MCP 工具集全程协议内操作 |
+| 🤖 **AI agent 闭环** | `start` 认领开工、`ready` 查可开工节点、`done` 收尾并追加完成记录（带护栏警告）、`block`/`drop` 标记旁路、`reopen` 撤销误操作，配合 MCP 工具集全程协议内操作 |
 | 📦 **单文件页面** | 前端产物内嵌 CLI，`.waymark/index.html` 双击即开，目标项目零依赖 |
 | 🔥 **实时热重载** | `waymark ui` 监听 plan/、证据目录与 git，改动数秒内推流到浏览器；页面内可直接「认领开工 / 标记完成」 |
 
@@ -50,6 +50,9 @@ waymark ui         # 本地实时页面（默认 http://localhost:7300）
 waymark start M-xxx                         # 认领开工（planned → in-progress；依赖未满足时提示）
 waymark done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
 waymark ready                               # 列出可开工节点（planned 且依赖已满足）
+waymark block M-xxx -m "等待平台选型"        # 标记受阻（旁路状态，解除后 reopen 恢复）
+waymark drop M-xxx                          # 放弃节点（旁路状态）
+waymark reopen M-xxx                        # 撤销误操作：done/blocked/dropped → in-progress（--planned 退回未开始）
 ```
 
 `waymark render` 产出的进度页长这样（自包含单文件，双击即开）：
@@ -67,6 +70,9 @@ waymark ready                               # 列出可开工节点（planned �
 | `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 热重载；页面内可直接认领开工/标记完成（与 CLI/MCP 同引擎，含护栏警告） |
 | `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
 | `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收；依赖未完成/验收未勾/原状态异常时给出护栏警告 |
+| `waymark block <id> -m <原因>` | 标记受阻（blocked 旁路），说明带 `[blocked]` 前缀入完成记录；解除阻塞用 `reopen` |
+| `waymark drop <id> -m <原因>` | 放弃节点（dropped 旁路），说明带 `[dropped]` 前缀入完成记录 |
+| `waymark reopen <id> [--planned]` | 重新打开 done/blocked/dropped 节点：默认恢复 in-progress，`--planned` 退回未开始；说明带 `[reopened]` 前缀 |
 | `waymark ready` | 列出 planned 且依赖已满足的节点，页面侧带「可开工」紫色标识 |
 | `waymark hub [patterns…] [-o file]` | 多项目总览：聚合各项目 workflow.json 为一张静态总览页（默认 `.waymark/hub.html`），未同步项目给出提示 |
 | `waymark mcp` | 以 MCP stdio 服务启动，把上述能力暴露给 AI agent |
@@ -95,7 +101,7 @@ plan/
 └── iterations/*.md      # 迭代计划（id / title / goal / window）
 ```
 
-- **状态机**：`planned → in-progress → done`（旁路 `blocked` / `dropped`）
+- **状态机**：`planned → in-progress → done`（旁路 `blocked` / `dropped`，由 `block` / `drop` 设置、`reopen` 恢复）
 - **证据四维**：`paths`（文件存在）/ `grep`（代码命中）/ `tests`（测试存在）/ `git`（提交匹配）；推断只提示不覆盖声明
 - **迭代演进**：新增 `plan/iterations/I2-xxx.md` + 节点标 `iteration: I2` → `ui` 模式数秒内自动出现在视图
 
@@ -121,6 +127,9 @@ plan/
 | `waymark_list_ready` | 列出可开工节点 |
 | `waymark_start_node` | 认领节点开工（planned → in-progress，返回护栏警告与下一步可开工节点） |
 | `waymark_mark_done` | 标记节点完成并追加完成记录（返回护栏警告与下一步可开工节点） |
+| `waymark_block_node` | 标记节点受阻（blocked 旁路，可带说明） |
+| `waymark_drop_node` | 放弃节点（dropped 旁路，可带说明） |
+| `waymark_reopen_node` | 重新打开 done/blocked/dropped 节点（默认 in-progress，`planned=true` 退回未开始） |
 | `waymark_check` | 校验 /plan 规范并返回错误/警示明细 |
 
 结果按输入（plan/ + 证据目录 + git 索引）mtime 指纹缓存，高频调用不会重复扫描。
@@ -133,13 +142,13 @@ plan/
 
 ```
 src/
-├── cli.ts          # 入口：init / check / sync / start / done / ready / render / ui / mcp / hub
+├── cli.ts          # 入口：init / check / sync / start / done / block / drop / reopen / ready / render / ui / mcp / hub
 ├── parser/         # plan/ 文档解析（frontmatter + 完成记录 + 总览表）
 ├── graph/          # DAG 构建（拓扑排序/环检测）与 check 校验规则
 ├── infer/          # 证据四维评分 → 状态推断
 ├── sync/           # 声明×推断冲突矩阵 → workflow.json
 ├── render/         # 契约自检 + 数据注入单文件 HTML（含证据目录过期检测）
-├── plan/           # start / done / ready 命令 + check 共享校验
+├── plan/           # start / done / block / drop / reopen / ready 命令 + check 共享校验
 ├── ui/             # 本地服务：chokidar watch + SSE 热重载
 ├── mcp/            # MCP stdio 服务 + 工作流缓存
 ├── hub/            # 多项目聚合总览页

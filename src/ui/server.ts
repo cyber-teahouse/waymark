@@ -4,7 +4,7 @@ import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
 import { buildWorkflow } from "../sync/build.js";
 import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
-import { startNode, markDone } from "../plan/commands.js";
+import { startNode, markDone, blockNode, dropNode, reopenNode } from "../plan/commands.js";
 
 export { collectEvidenceWatchTargets } from "../render/render.js";
 
@@ -55,8 +55,8 @@ export function startServer(root: string, port: number, bundle?: string): http.S
       req.on("close", () => clients.delete(res));
       return;
     }
-    // 节点写操作（认领开工/标记完成）：与 CLI/MCP 同一引擎，完成后重建页面并推流刷新
-    if (req.url === "/api/start" || req.url === "/api/done") {
+    // 节点写操作（认领开工/标记完成/受阻/放弃/重新打开）：与 CLI/MCP 同一引擎，完成后重建页面并推流刷新
+    if (req.url?.startsWith("/api/")) {
       const json = (status: number, obj: unknown) => {
         res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
         res.end(JSON.stringify(obj));
@@ -70,7 +70,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(403, { ok: false, error: "缺少 x-waymark 请求头（防跨站伪造）" });
         return;
       }
-      let body: { id?: unknown; note?: unknown; allAcceptance?: unknown };
+      let body: { id?: unknown; note?: unknown; allAcceptance?: unknown; planned?: unknown };
       try {
         body = JSON.parse((await readBody(req)) || "{}");
       } catch {
@@ -81,13 +81,24 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(400, { ok: false, error: "缺少节点 id" });
         return;
       }
+      const note = typeof body.note === "string" && body.note !== "" ? body.note : undefined;
       try {
-        const result = req.url === "/api/start"
-          ? startNode(root, body.id)
-          : markDone(root, body.id, {
-            note: typeof body.note === "string" ? body.note : undefined,
-            allAcceptance: body.allAcceptance === true,
-          });
+        const result = (() => {
+          switch (req.url) {
+            case "/api/start": return startNode(root, body.id);
+            case "/api/done": return markDone(root, body.id, {
+              note,
+              allAcceptance: body.allAcceptance === true,
+            });
+            case "/api/block": return blockNode(root, body.id, { note });
+            case "/api/drop": return dropNode(root, body.id, { note });
+            case "/api/reopen": return reopenNode(root, body.id, {
+              planned: body.planned === true,
+              note,
+            });
+            default: throw new Error(`未知接口: ${req.url}`);
+          }
+        })();
         try {
           cache = await renderPage();
           pushReload();
