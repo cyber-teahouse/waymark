@@ -35,8 +35,18 @@ export function scoreTests(root: string, globs: string[]): EvidenceCheck {
   if (globs.length === 0) {
     return { kind: "tests", ok: false, score: 0, detail: "未声明", skipped: true };
   }
-  const present = globs.every(g => hasSubstantialFile(root, g));
-  return present
-    ? { kind: "tests", ok: true, score: 0.5, detail: `${globs.length} 个测试 glob 均存在（v1 只查存在性）` }
-    : { kind: "tests", ok: false, score: 0, detail: `测试文件缺失: ${globs.join(", ")}` };
+  let hit = 0;
+  const misses: string[] = [];
+  for (const g of globs) {
+    if (hasSubstantialFile(root, g)) hit++;
+    else misses.push(g);
+  }
+  // 存在性证据权重封顶 0.5：测试文件存在 ≠ 测试通过，单独此维永远不会把节点推断为 done
+  const score = 0.5 * (hit / globs.length);
+  return {
+    kind: "tests", ok: hit === globs.length, score,
+    detail: misses.length === 0
+      ? `${globs.length} 个测试 glob 均存在（存在性证据，权重封顶 0.5）`
+      : `测试文件缺失: ${misses.join(", ")}${hit > 0 ? `（${hit}/${globs.length} 命中）` : ""}`,
+  };
 }

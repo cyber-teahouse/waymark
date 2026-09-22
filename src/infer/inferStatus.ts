@@ -1,6 +1,7 @@
 import type {
   AcceptanceItem, CommitInfo, EvidenceCheck, EvidenceKind, NodeFrontmatter, NodeStatus,
 } from "../types.js";
+import type { GitSnapshot } from "./scoreGit.js";
 import { scorePaths, scoreTests } from "./scorePaths.js";
 import { scoreGrep } from "./scoreGrep.js";
 import { scoreGit } from "./scoreGit.js";
@@ -20,7 +21,14 @@ export interface InferenceResult {
   commits: CommitInfo[];
 }
 
-export async function inferEvidence(root: string, fm: NodeFrontmatter): Promise<InferenceResult> {
+/** gitSnapshot：调用方预取的 commit 列表（一次构建内共享，避免每节点各 spawn 一次 git）；缺省时自行加载。
+ *  grepFileCache：grep 候选文件列表的构建内共享缓存，避免多节点重复全仓遍历。 */
+export async function inferEvidence(
+  root: string,
+  fm: NodeFrontmatter,
+  gitSnapshot?: GitSnapshot,
+  grepFileCache?: Map<string, string[]>,
+): Promise<InferenceResult> {
   const ev = fm.evidence;
   if (!ev) {
     return { report: [], score: 0, inferred: null, confidence: 0, commits: [] };
@@ -34,7 +42,7 @@ export async function inferEvidence(root: string, fm: NodeFrontmatter): Promise<
     declared.push("paths");
   }
   if (ev.grep) {
-    const r = scoreGrep(root, ev.grep, ev.paths ?? []);
+    const r = scoreGrep(root, ev.grep, ev.paths ?? [], grepFileCache);
     report.push(r.check);
     declared.push("grep");
   }
@@ -43,7 +51,7 @@ export async function inferEvidence(root: string, fm: NodeFrontmatter): Promise<
     declared.push("tests");
   }
   if (ev.git) {
-    const r = await scoreGit(root, ev.git);
+    const r = await scoreGit(root, ev.git, gitSnapshot);
     report.push(r.check);
     commits.push(...r.commits);
     declared.push("git");

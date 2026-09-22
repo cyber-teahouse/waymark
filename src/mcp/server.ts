@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadPlan } from "../parser/parsePlan.js";
-import { buildGraph } from "../graph/buildGraph.js";
-import { validatePlan, validatePatterns } from "../graph/validate.js";
-import { markDone, listReady } from "../plan/commands.js";
+import { markDone, listReady, startNode } from "../plan/commands.js";
+import { collectPlanIssues } from "../plan/check.js";
 import { getVersion } from "../version.js";
 import { getWorkflowCached } from "./workflowCache.js";
 
@@ -12,17 +10,6 @@ const SERVER_NAME = "waymark";
 
 function jsonText(obj: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(obj, null, 2) }] };
-}
-
-/** 与 CLI check 相同的校验组合 */
-function collectIssues(root: string) {
-  const plan = loadPlan(root);
-  const graph = buildGraph(plan.nodes);
-  return [
-    ...plan.issues,
-    ...validatePlan({ ...plan, graph }),
-    ...validatePatterns(plan.nodes),
-  ];
 }
 
 /** 创建 waymark MCP server（未连接 transport）。工具复用 sync/plan/graph 引擎，全部返回 JSON 文本。 */
@@ -71,6 +58,19 @@ export function createMcpServer(root: string): McpServer {
     });
   });
 
+  server.registerTool("waymark_start_node", {
+    description: "认领开工：把 planned 节点标记为 in-progress（开工前先调用 waymark_list_ready）",
+    inputSchema: { id: z.string().min(1) },
+  }, async ({ id }) => {
+    const { file, warnings } = startNode(root, id);
+    return jsonText({
+      message: "已标记为 in-progress，完成后调用 waymark_mark_done 收尾",
+      file,
+      warnings,
+      readyNext: listReady(root),
+    });
+  });
+
   server.registerTool("waymark_mark_done", {
     description: "标记节点完成并追加完成记录",
     inputSchema: {
@@ -79,17 +79,19 @@ export function createMcpServer(root: string): McpServer {
       allAcceptance: z.boolean().optional(),
     },
   }, async ({ id, note, allAcceptance }) => {
-    const { file } = markDone(root, id, { note, allAcceptance });
+    const { file, warnings } = markDone(root, id, { note, allAcceptance });
     return jsonText({
       message: "已标记完成，建议运行 waymark sync 或调用 waymark_summary 刷新数据",
       file,
+      warnings,
+      readyNext: listReady(root),
     });
   });
 
   server.registerTool("waymark_check", {
     description: "校验 /plan 规范",
   }, async () => {
-    const issues = collectIssues(root);
+    const issues = collectPlanIssues(root);
     return jsonText({
       errors: issues.filter(i => i.level === "error").length,
       warnings: issues.filter(i => i.level === "warning").length,

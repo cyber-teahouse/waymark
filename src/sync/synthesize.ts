@@ -7,18 +7,22 @@ import {
 } from "../types.js";
 import type { Graph } from "../graph/buildGraph.js";
 import { inferEvidence, parseAcceptance } from "../infer/inferStatus.js";
+import { loadGitSnapshot } from "../infer/scoreGit.js";
 
 export function computeDisplay(
   declared: NodeStatus,
   inferred: NodeStatus | null,
   hasEvidence: boolean,
-): { displayStatus: NodeStatus; warning: "evidence-insufficient" | "ready-to-complete" | null } {
+): { displayStatus: NodeStatus; warning: "evidence-insufficient" | "ready-to-complete" | "stalled" | null } {
   if (!hasEvidence || inferred === null) return { displayStatus: declared, warning: null };
   if (declared === "done" && inferred !== "done") {
     return { displayStatus: declared, warning: "evidence-insufficient" };
   }
   if (declared === "planned" && inferred === "done") {
     return { displayStatus: declared, warning: "ready-to-complete" };
+  }
+  if (declared === "in-progress" && inferred === "planned") {
+    return { displayStatus: declared, warning: "stalled" };
   }
   return { displayStatus: declared, warning: null };
 }
@@ -40,8 +44,14 @@ export async function synthesize(input: SynthesizeInput): Promise<WorkflowJson> 
   );
 
   const wfNodes: WorkflowNode[] = [];
+  // 有任一节点声明 git 证据时，整次构建只读一次 git log
+  const gitSnapshot = input.nodes.some(n => n.fm.evidence?.git?.length)
+    ? await loadGitSnapshot(input.root)
+    : undefined;
+  // grep 候选文件遍历同样按构建共享（全仓遍历是最贵的一步）
+  const grepCache = new Map<string, string[]>();
   for (const doc of sorted) {
-    const inf = await inferEvidence(input.root, doc.fm);
+    const inf = await inferEvidence(input.root, doc.fm, gitSnapshot, grepCache);
     const hasEvidence = doc.fm.evidence !== undefined;
     const { displayStatus, warning } = computeDisplay(doc.fm.status, inf.inferred, hasEvidence);
     wfNodes.push({

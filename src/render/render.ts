@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderHtml } from "./template.js";
-import { WorkflowJsonSchema, type WorkflowJson } from "../types.js";
+import { WorkflowJsonSchema, IGNORE_DIR_NAMES, type WorkflowJson } from "../types.js";
 import { loadPlan } from "../parser/parsePlan.js";
 
 export function bundlePath(): string {
@@ -39,7 +39,8 @@ export function writeIndexHtml(root: string, html: string): void {
   fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
 }
 
-/** 目录内全部文件的最新 mtime（递归；目录不存在返回 0，单个文件 stat 失败忽略）。 */
+/** 目录内全部文件的最新 mtime（递归；跳过 node_modules 等忽略目录，防止证据目录声明过宽时扫描失控。
+ *  目录不存在返回 0，单个文件 stat 失败忽略。 */
 export function dirNewestMtime(dir: string): number {
   if (!fs.existsSync(dir)) return 0;
   let newest = 0;
@@ -52,7 +53,9 @@ export function dirNewestMtime(dir: string): number {
     }
     for (const e of entries) {
       const full = path.join(d, e.name);
-      if (e.isDirectory()) walk(full);
+      if (e.isDirectory()) {
+        if (!IGNORE_DIR_NAMES.includes(e.name)) walk(full);
+      }
       else {
         try {
           newest = Math.max(newest, fs.statSync(full).mtimeMs);

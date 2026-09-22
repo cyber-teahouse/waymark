@@ -65,7 +65,7 @@ export const WorkflowNodeSchema = z.object({
   declaredStatus: NodeStatusSchema,
   inferredStatus: NodeStatusSchema.nullable(),
   displayStatus: NodeStatusSchema,
-  warning: z.enum(["evidence-insufficient", "ready-to-complete"]).nullable(),
+  warning: z.enum(["evidence-insufficient", "ready-to-complete", "stalled"]).nullable(),
   cycle: z.boolean().optional(),
   confidence: z.number(),
   evidenceReport: z.array(z.object({

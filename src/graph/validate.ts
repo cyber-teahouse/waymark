@@ -43,11 +43,20 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
   if (overview) {
     const milestoneIds = new Set(nodes.filter(n => n.fm.type === "milestone").map(n => n.fm.id));
     const allIds = new Set(nodes.map(n => n.fm.id));
+    const nodeById = new Map(nodes.map(n => [n.fm.id, n]));
     const tableIds = new Set<string>();
     for (const row of overview.table) {
       tableIds.add(row.id);
       if (!allIds.has(row.id)) {
         issues.push({ level: "error", file: overview.file, message: `总览表含未知节点: ${row.id}` });
+        continue;
+      }
+      const node = nodeById.get(row.id)!;
+      if (row.title && row.title !== node.fm.title) {
+        issues.push({
+          level: "warning", file: overview.file,
+          message: `总览表标题与节点不一致: ${row.id}「${row.title}」≠「${node.fm.title}」——建议同步`,
+        });
       }
     }
     for (const id of milestoneIds) {
@@ -65,6 +74,12 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
     if (n.fm.status === "in-progress" && n.fm.acceptance.length > 0
       && !n.fm.acceptance.some(a => /^\s*\[\s*[xX]\s*\]/.test(a))) {
       issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 进行中但验收标准无一勾选——随进展及时勾选` });
+    }
+    if (n.fm.status === "done" && n.fm.acceptance.length > 0) {
+      const unchecked = n.fm.acceptance.filter(a => !/^\s*\[\s*[xX]\s*\]/.test(a)).length;
+      if (unchecked > 0) {
+        issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 已完成但有 ${unchecked} 项验收标准未勾选——确认后用 --acc 补勾或复核` });
+      }
     }
     const ev = n.fm.evidence;
     if (ev && Object.values(ev).every(arr => !arr || arr.length === 0)) {

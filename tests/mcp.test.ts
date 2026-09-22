@@ -13,6 +13,7 @@ const TOOL_NAMES = [
   "waymark_summary",
   "waymark_get_node",
   "waymark_list_ready",
+  "waymark_start_node",
   "waymark_mark_done",
   "waymark_check",
 ];

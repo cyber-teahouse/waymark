@@ -40,10 +40,15 @@ function collectCandidates(root: string, scopeGlobs: string[]): string[] {
     .map(f => path.join(root, f));
 }
 
+function cacheKey(scopeGlobs: string[]): string {
+  return scopeGlobs.join("\u0000");
+}
+
 export function scoreGrep(
   root: string,
   patterns: string[],
   scopeGlobs: string[] = [],
+  fileCache?: Map<string, string[]>,
 ): { check: EvidenceCheck; sampleHits: string[] } {
   if (patterns.length === 0) {
     return { check: { kind: "grep", ok: false, score: 0, detail: "未声明", skipped: true }, sampleHits: [] };
@@ -57,7 +62,10 @@ export function scoreGrep(
       sampleHits: [],
     };
   }
-  const candidates = collectCandidates(root, scopeGlobs);
+  const key = cacheKey(scopeGlobs);
+  const cached = fileCache?.get(key);
+  const candidates = cached ?? collectCandidates(root, scopeGlobs);
+  if (!cached) fileCache?.set(key, candidates);
   const sampleHits: string[] = [];
   let anyHit = false;
   let truncated = candidates.length >= MAX_FILES;
