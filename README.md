@@ -24,10 +24,10 @@
 |---|---|
 | 📄 **文档即数据源** | 一个节点一个 Markdown 文件（frontmatter 声明状态/依赖/验收/证据），无数据库、无账号 |
 | 🔍 **证据四维推断** | `paths` / `grep` / `tests` / `git` 四类代码证据打分，自动推断节点完成度 |
-| ⚖️ **冲突只警示** | 推断不覆盖声明：证据不足 ⚠、可标记完成 💡，高亮提示但不篡改你的计划 |
-| 🤖 **AI agent 闭环** | `ready` 查可开工节点、`done` 收尾并追加完成记录，配合 MCP 工具集全程协议内操作 |
+| ⚖️ **冲突只警示** | 推断不覆盖声明：证据不足 ⚠、可标记完成 💡、无进展证据 🛑，高亮提示但不篡改你的计划 |
+| 🤖 **AI agent 闭环** | `start` 认领开工、`ready` 查可开工节点、`done` 收尾并追加完成记录（带护栏警告），配合 MCP 工具集全程协议内操作 |
 | 📦 **单文件页面** | 前端产物内嵌 CLI，`.waymark/index.html` 双击即开，目标项目零依赖 |
-| 🔥 **实时热重载** | `waymark ui` 监听 plan/、证据目录与 git，改动数秒内推流到浏览器 |
+| 🔥 **实时热重载** | `waymark ui` 监听 plan/、证据目录与 git，改动数秒内推流到浏览器；页面内可直接「认领开工 / 标记完成」 |
 
 ## 🥾 快速起步
 
@@ -46,6 +46,7 @@ waymark ui         # 本地实时页面（默认 http://localhost:7300）
 推进节点（AI agent 友好）：
 
 ```bash
+waymark start M-xxx                         # 认领开工（planned → in-progress；依赖未满足时提示）
 waymark done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
 waymark ready                               # 列出可开工节点（planned 且依赖已满足）
 ```
@@ -57,13 +58,14 @@ waymark ready                               # 列出可开工节点（planned �
 | `waymark init` | 在项目根生成 `plan/` 骨架（overview + 迭代 + 示例节点） |
 | `waymark check` | 校验 /plan 规范：id 唯一 / 依赖存在 / 无循环 / 迭代引用 / 总览一致 / 正则合法 |
 | `waymark sync` | 解析 plan + 证据推断 → 生成 `.waymark/workflow.json`（含警示） |
-| `waymark render` | 由 workflow.json 生成自包含 `.waymark/index.html`（plan 或证据过期会提醒重新 sync） |
-| `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 热重载 |
-| `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收 |
+| `waymark render [--fresh]` | 由 workflow.json 生成自包含 `.waymark/index.html`；`--fresh` 在数据缺失/过期时自动 sync 后再渲染 |
+| `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 热重载；页面内可直接认领开工/标记完成（与 CLI/MCP 同引擎，含护栏警告） |
+| `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
+| `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收；依赖未完成/验收未勾/原状态异常时给出护栏警告 |
 | `waymark ready` | 列出 planned 且依赖已满足的节点，页面侧带「可开工」紫色标识 |
 | `waymark mcp` | 以 MCP stdio 服务启动，把上述能力暴露给 AI agent |
 
-全局参数：`--root <dir>` 指定项目根目录（默认当前目录），对所有子命令生效。
+全局参数：`--root <dir>` 指定项目根目录（默认当前目录），对所有子命令生效——**前置后置均可**（`waymark --root X check` 与 `waymark check --root X` 等价，后置优先）。
 
 ## 🪧 /plan 结构
 
@@ -84,7 +86,7 @@ plan/
 | 级别 | 规则 |
 |---|---|
 | error（exit 1） | id 重复 / 依赖指向不存在节点 / 循环依赖（含路径）/ 迭代引用无效 / 总览表与里程碑双向不一致 / evidence 正则非法 |
-| warning（仅提示） | 已完成但无完成记录 / 进行中但验收无一勾选 / evidence 声明为空 |
+| warning（仅提示） | 已完成但无完成记录 / 已完成但验收未全勾 / 进行中但验收无一勾选 / evidence 声明为空 / 总览表标题与节点不一致 |
 
 ## 🤖 MCP 集成
 
@@ -99,7 +101,8 @@ plan/
 | `waymark_summary` | 项目工作流总览（轻量 JSON：统计/迭代/节点状态） |
 | `waymark_get_node` | 按 id 获取节点详情（验收/证据/提交/完成记录） |
 | `waymark_list_ready` | 列出可开工节点 |
-| `waymark_mark_done` | 标记节点完成并追加完成记录 |
+| `waymark_start_node` | 认领节点开工（planned → in-progress，返回护栏警告与下一步可开工节点） |
+| `waymark_mark_done` | 标记节点完成并追加完成记录（返回护栏警告与下一步可开工节点） |
 | `waymark_check` | 校验 /plan 规范并返回错误/警示明细 |
 
 结果按输入（plan/ + 证据目录 + git 索引）mtime 指纹缓存，高频调用不会重复扫描。
@@ -118,7 +121,7 @@ src/
 ├── infer/          # 证据四维评分 → 状态推断
 ├── sync/           # 声明×推断冲突矩阵 → workflow.json
 ├── render/         # 契约自检 + 数据注入单文件 HTML（含证据目录过期检测）
-├── plan/           # done / ready 命令
+├── plan/           # start / done / ready 命令 + check 共享校验
 ├── ui/             # 本地服务：chokidar watch + SSE 热重载
 ├── mcp/            # MCP stdio 服务 + 工作流缓存
 └── version.ts      # 版本号唯一来源（包根 package.json）
@@ -130,6 +133,7 @@ tests/              # 17 个测试文件（parser/graph/infer/render/server/e2e/
 
 - 页面 SVG 动画在 GitHub 上可能被冻结为静态帧——banner 按静态优先设计
 - 过期检测基于文件 mtime（plan/ + 证据目录 + git 索引），精确到文件系统时钟粒度
+- Windows 下以 8.3 短路径（如 `ADMINI~1`）作为项目根运行 `waymark ui` 时，chokidar/libuv 可能触发断言崩溃——请使用常规长路径（已对监听目标做 realpath 归一化，常规路径不受影响）
 - 发版流程见 [RELEASE.md](RELEASE.md)
 
 ## 📜 License
