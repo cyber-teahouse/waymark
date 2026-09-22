@@ -22,4 +22,10 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run build:web
+      - name: dist 新鲜度校验（防 src/dist 漂移）
+        run: |
+          git diff --exit-code dist || {
+            echo '::error::dist 与 src 不同步：改了源码但没提交重建产物。请运行 npm run build && npm run build:web 后一并提交。'
+            exit 1
+          }
       - run: npm test
