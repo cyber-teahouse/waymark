@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640"
+     font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <!-- 纸面底 + 等高线 -->
+  <rect width="1280" height="640" fill="#f5f0e6"/>
+  <g fill="none" stroke="#e0d7c2" stroke-width="2">
+    <path d="M-20,90 C200,60 420,110 640,80 S1080,40 1300,96"/>
+    <path d="M-20,480 C220,440 440,520 680,480 S1100,430 1300,476"/>
+    <path d="M-20,545 C240,512 460,570 700,540 S1110,500 1300,542"/>
+    <path d="M-20,150 C180,128 400,168 620,144 S1040,116 1300,156"/>
+  </g>
+
+  <!-- 国家公园徽章（左） -->
+  <g>
+    <circle cx="330" cy="320" r="270" fill="#22402f"/>
+    <circle cx="330" cy="320" r="250" fill="none" stroke="#f5f0e6" stroke-width="13" stroke-dasharray="4 18"/>
+    <circle cx="330" cy="320" r="232" fill="#f5f0e6"/>
+    <circle cx="404" cy="252" r="29" fill="#c8501c"/>
+    <path d="M190,403 L296,273 L364,356 L425,266 L519,403 Z" fill="#22402f"/>
+    <text x="330" y="473" text-anchor="middle" font-size="50" font-weight="700"
+          letter-spacing="4" fill="#22402f">WAYMARK</text>
+    <text x="330" y="518" text-anchor="middle" font-size="20" font-weight="600"
+          letter-spacing="5" fill="#c8501c">TRAIL PROGRESS</text>
+  </g>
+
+  <!-- 字标（右） -->
+  <text x="640" y="300" font-size="88" font-weight="800"
+        letter-spacing="14" fill="#22402f">WAYMARK</text>
+  <text x="644" y="362" font-size="28" fill="#b6460f">/plan 驱动的项目进度工作流路标</text>
+  <rect x="644" y="384" width="180" height="4" fill="#c8501c"/>
+  <text x="644" y="436" font-size="22" fill="#3f6b4f">计划文档 + 代码证据 → 自动推断完成度 → DAG 工作流页面</text>
+  <text x="644" y="492" font-size="20" font-weight="600" letter-spacing="2" fill="#6b7f6e">CLI · MCP · 热重载 UI · CI 友好</text>
+
+  <!-- 步道点缀 -->
+  <path d="M644,556 C800,586 980,530 1190,556" fill="none"
+        stroke="#b6460f" stroke-width="3" stroke-dasharray="1 10" stroke-linecap="round"/>
+  <circle cx="644" cy="556" r="7" fill="#22402f"/>
+  <circle cx="900" cy="556" r="7" fill="#c8501c"/>
+  <circle cx="1190" cy="556" r="7" fill="#f5f0e6" stroke="#22402f" stroke-width="2.5"/>
+</svg>
