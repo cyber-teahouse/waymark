@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cyber-teahouse/waymark/actions/workflows/ci.yml"><img src="https://github.com/cyber-teahouse/waymark/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="#"><img src="https://img.shields.io/badge/version-0.2.1-%23c98f2c" alt="version"></a>
   <a href="#"><img src="https://img.shields.io/badge/node-%3E%3D20-339933" alt="node"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license"></a>
@@ -51,6 +52,10 @@ waymark done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成�
 waymark ready                               # 列出可开工节点（planned 且依赖已满足）
 ```
 
+`waymark render` 产出的进度页长这样（自包含单文件，双击即开）：
+
+![waymark 进度页](docs/screenshot.png)
+
 ## 🗺️ 命令一览
 
 | 你说 | 它做什么 |
@@ -63,9 +68,22 @@ waymark ready                               # 列出可开工节点（planned �
 | `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
 | `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收；依赖未完成/验收未勾/原状态异常时给出护栏警告 |
 | `waymark ready` | 列出 planned 且依赖已满足的节点，页面侧带「可开工」紫色标识 |
+| `waymark hub [patterns…] [-o file]` | 多项目总览：聚合各项目 workflow.json 为一张静态总览页（默认 `.waymark/hub.html`），未同步项目给出提示 |
 | `waymark mcp` | 以 MCP stdio 服务启动，把上述能力暴露给 AI agent |
 
 全局参数：`--root <dir>` 指定项目根目录（默认当前目录），对所有子命令生效——**前置后置均可**（`waymark --root X check` 与 `waymark check --root X` 等价，后置优先）。
+
+## 🏔️ 多项目总览（hub）
+
+在有多个 waymark 项目的父目录运行 `waymark hub`，一条命令聚合所有项目进度为一张静态总览页（默认 `.waymark/hub.html`）：每个项目一张卡（完成率圆环、状态分布、数据新鲜度），点击直达各自的进度页；未同步的项目给出 `waymark sync` 提示。
+
+```bash
+cd /path/to/projects               # 目录下每个子目录是一个项目
+waymark hub                        # 扫描一级子目录 → 生成 .waymark/hub.html
+waymark hub "work/*" -o out.html   # 也可传目录 glob 与自定义输出路径
+```
+
+![waymark hub 多项目总览](docs/hub.png)
 
 ## 🪧 /plan 结构
 
@@ -109,13 +127,13 @@ plan/
 
 ## 🔄 CI 自动渲染
 
-参考 [docs/ci-example.yml](docs/ci-example.yml)：push 时自动 `sync + render` 并提交 `.waymark/index.html`（git 证据需要 `fetch-depth: 0`）。
+参考 [docs/ci-example.yml](docs/ci-example.yml)：push 时自动 `sync + render` 并提交 `.waymark/index.html`（git 证据需要 `fetch-depth: 0`）。waymark 工具仓自身的测试流水线见 [.github/workflows/ci.yml](.github/workflows/ci.yml)（ubuntu/windows × node 20/22 矩阵）。
 
 ## 🧰 工程结构
 
 ```
 src/
-├── cli.ts          # 入口：init / check / sync / done / ready / render / ui / mcp
+├── cli.ts          # 入口：init / check / sync / start / done / ready / render / ui / mcp / hub
 ├── parser/         # plan/ 文档解析（frontmatter + 完成记录 + 总览表）
 ├── graph/          # DAG 构建（拓扑排序/环检测）与 check 校验规则
 ├── infer/          # 证据四维评分 → 状态推断
@@ -124,9 +142,10 @@ src/
 ├── plan/           # start / done / ready 命令 + check 共享校验
 ├── ui/             # 本地服务：chokidar watch + SSE 热重载
 ├── mcp/            # MCP stdio 服务 + 工作流缓存
+├── hub/            # 多项目聚合总览页
 └── version.ts      # 版本号唯一来源（包根 package.json）
 web/                # React 单页应用（xyflow DAG 画布 + dagre 布局）
-tests/              # 17 个测试文件（parser/graph/infer/render/server/e2e/mcp）
+tests/              # 19 个测试文件（parser/graph/infer/render/server/e2e/mcp/hub）
 ```
 
 ## 🧭 已知事项
