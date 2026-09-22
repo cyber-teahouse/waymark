@@ -15,6 +15,7 @@
 
 - `package.json` 的 `version` 字段
 - `package-lock.json` 顶部 `version` 与 `packages."".version` 两处
+- `README.md` 顶部的 version 徽章（`img.shields.io/badge/version-…`）
 
 版本号遵循 semver：`patch`（缺陷修复 / 小改进）、`minor`（新功能）、`major`（破坏性变更）。
 
