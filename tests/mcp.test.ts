@@ -7,6 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { makeSampleProject } from "./helpers.js";
 import { createMcpServer } from "../src/mcp/server.js";
+import { getWorkflowCacheStats, resetWorkflowCache } from "../src/mcp/workflowCache.js";
 
 const TOOL_NAMES = [
   "waymark_summary",
@@ -135,6 +136,29 @@ describe("waymark mcp server", () => {
     expect(obj.errors).toBe(0);
     expect(typeof obj.warnings).toBe("number");
     expect(Array.isArray(obj.issues)).toBe(true);
+    await client.close();
+    await server.close();
+  });
+});
+
+describe("workflow cache（MCP 工具共享）", () => {
+  it("重复调用命中缓存；plan 变更后自动失效重建", async () => {
+    const root = await makeTempSample();
+    resetWorkflowCache();
+    const { server, client } = await setup(root);
+
+    await client.callTool({ name: "waymark_summary", arguments: {} });
+    const afterFirst = getWorkflowCacheStats().rebuilds;
+
+    // 无变更：第二个工具调用应命中缓存，不触发重建
+    await client.callTool({ name: "waymark_get_node", arguments: { id: "M1-core" } });
+    expect(getWorkflowCacheStats().rebuilds).toBe(afterFirst);
+
+    // 变更 plan/ → 指纹变化 → 下一次调用重建
+    fs.appendFileSync(path.join(root, "plan", "milestones", "M3-登录.md"), "\n补充说明\n");
+    await client.callTool({ name: "waymark_summary", arguments: {} });
+    expect(getWorkflowCacheStats().rebuilds).toBe(afterFirst + 1);
+
     await client.close();
     await server.close();
   });

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { makeSampleProject } from "./helpers.js";
 import { buildWorkflow } from "../src/sync/build.js";
-import { renderWorkflowHtml, writeWorkflow, writeIndexHtml } from "../src/render/render.js";
+import { renderWorkflowHtml, writeWorkflow, writeIndexHtml, planNewerThan, workflowInputMtime, dirNewestMtime } from "../src/render/render.js";
 
 describe("renderWorkflowHtml", () => {
   it("renders workflow into standalone html using stub bundle", async () => {
@@ -24,5 +24,40 @@ describe("renderWorkflowHtml", () => {
     writeIndexHtml(root, "<html>ok</html>");
     expect(fs.existsSync(path.join(root, ".waymark", "workflow.json"))).toBe(true);
     expect(fs.readFileSync(path.join(root, ".waymark", "index.html"), "utf8")).toBe("<html>ok</html>");
+  });
+});
+
+describe("planNewerThan（含证据目录）", () => {
+  it("ref 文件最新时返回 false", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-render3-"));
+    await makeSampleProject(root);
+    const ref = path.join(root, "ref.json");
+    fs.writeFileSync(ref, "{}");
+    // ref 刚刚写入，必然晚于 plan/ 与证据目录的 mtime
+    const future = Date.now() + 10_000;
+    fs.utimesSync(ref, future / 1000, future / 1000);
+    expect(planNewerThan(root, ref)).toBe(false);
+  });
+
+  it("证据目录内文件比 ref 新时返回 true（plan/ 未动）", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-render4-"));
+    await makeSampleProject(root);
+    const ref = path.join(root, "ref.json");
+    fs.writeFileSync(ref, "{}");
+    const future = Date.now() + 10_000;
+    fs.utimesSync(ref, future / 1000, future / 1000);
+    // 只改证据文件，不动 plan/
+    const evidenceFile = path.join(root, "src", "core", "index.ts");
+    const newer = future / 1000 + 10;
+    fs.utimesSync(evidenceFile, newer, newer);
+    expect(planNewerThan(root, ref)).toBe(true);
+  });
+
+  it("workflowInputMtime 不晚于证据目录 mtime；dirNewestMtime 对缺失目录返回 0", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-render5-"));
+    await makeSampleProject(root);
+    expect(workflowInputMtime(root))
+      .toBeGreaterThanOrEqual(dirNewestMtime(path.join(root, "src", "core")));
+    expect(dirNewestMtime(path.join(root, "no-such-dir"))).toBe(0);
   });
 });

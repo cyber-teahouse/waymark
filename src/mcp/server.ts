@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { buildWorkflow } from "../sync/build.js";
-import { markDone, listReady } from "../plan/commands.js";
 import { loadPlan } from "../parser/parsePlan.js";
 import { buildGraph } from "../graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "../graph/validate.js";
+import { markDone, listReady } from "../plan/commands.js";
+import { getVersion } from "../version.js";
+import { getWorkflowCached } from "./workflowCache.js";
 
 const SERVER_NAME = "waymark";
-const SERVER_VERSION = "0.2.0";
 
 function jsonText(obj: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(obj, null, 2) }] };
@@ -27,12 +27,12 @@ function collectIssues(root: string) {
 
 /** 创建 waymark MCP server（未连接 transport）。工具复用 sync/plan/graph 引擎，全部返回 JSON 文本。 */
 export function createMcpServer(root: string): McpServer {
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const server = new McpServer({ name: SERVER_NAME, version: getVersion() });
 
   server.registerTool("waymark_summary", {
     description: "获取项目工作流总览",
   }, async () => {
-    const { workflow, issues } = await buildWorkflow(root);
+    const { workflow, issues } = await getWorkflowCached(root);
     return jsonText({
       project: workflow.project,
       generatedAt: workflow.generatedAt,
@@ -53,7 +53,7 @@ export function createMcpServer(root: string): McpServer {
     description: "获取节点详情（验收/证据/提交/完成记录）",
     inputSchema: { id: z.string().min(1) },
   }, async ({ id }) => {
-    const { workflow } = await buildWorkflow(root);
+    const { workflow } = await getWorkflowCached(root);
     const node = workflow.nodes.find(n => n.id === id);
     if (!node) throw new Error(`未找到节点: ${id}`);
     return jsonText(node);

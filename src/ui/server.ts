@@ -2,26 +2,10 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
-import { loadPlan } from "../parser/parsePlan.js";
 import { buildWorkflow } from "../sync/build.js";
-import { renderWorkflowHtml, loadBundle } from "../render/render.js";
+import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
 
-/** 从全部节点的 evidence.paths/tests 推导需要监听的静态目录（首个通配符前的部分）。 */
-export function collectEvidenceWatchTargets(root: string): string[] {
-  const plan = loadPlan(root);
-  const dirs = new Set<string>();
-  for (const n of plan.nodes) {
-    const globs = [...(n.fm.evidence?.paths ?? []), ...(n.fm.evidence?.tests ?? [])];
-    for (const g of globs) {
-      const base = g.split("*")[0].replace(/\/$/, "");
-      if (!base) continue;
-      const abs = path.resolve(root, base);
-      if (!fs.existsSync(abs)) continue;
-      dirs.add(fs.statSync(abs).isDirectory() ? abs : path.dirname(abs));
-    }
-  }
-  return [...dirs];
-}
+export { collectEvidenceWatchTargets } from "../render/render.js";
 
 export function startServer(root: string, port: number, bundle?: string): http.Server {
   let cache: string | null = null;

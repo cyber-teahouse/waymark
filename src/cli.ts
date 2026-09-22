@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
+import { getVersion } from "./version.js";
 import { loadPlan } from "./parser/parsePlan.js";
 import { buildGraph } from "./graph/buildGraph.js";
 import { validatePlan, validatePatterns } from "./graph/validate.js";
@@ -12,7 +13,7 @@ import { markDone, listReady } from "./plan/commands.js";
 
 const program = new Command();
 program.name("waymark").description("/plan 驱动的项目进度工作流可视化")
-  .version("0.2.0").option("--root <dir>", "项目根目录", process.cwd());
+  .version(getVersion()).option("--root <dir>", "项目根目录", process.cwd());
 
 program.command("check")
   .description("校验 /plan 文档规范")
@@ -109,7 +110,7 @@ program.command("render")
     try {
       const workflow = JSON.parse(fs.readFileSync(wfFile, "utf8"));
       if (planNewerThan(root, wfFile)) {
-        console.warn("⚠ plan/ 在 sync 之后有改动，工作流数据可能过期——建议重新 waymark sync");
+        console.warn("⚠ plan/ 或证据目录在 sync 之后有改动，工作流数据可能过期——建议重新 waymark sync");
       }
       const html = renderWorkflowHtml(workflow, loadBundle());
       writeIndexHtml(root, html);
