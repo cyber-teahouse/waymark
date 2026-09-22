@@ -21,6 +21,9 @@ jobs:
           node-version: 22
       - name: Install Waymark
         run: npm install -g github:cyber-teahouse/waymark
+        # 若 runner 的 git 源安装异常，可改为 checkout 本仓后本地安装：
+        #   git clone --depth 1 https://github.com/cyber-teahouse/waymark ../waymark
+        #   npm install -g ../waymark        # 或直接 npm pack && npm install -g waymark-cli-*.tgz
       - name: Render progress page
         run: |
           waymark sync
