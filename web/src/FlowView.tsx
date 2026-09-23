@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ReactFlow, Controls, MarkerType, Handle, Position, Panel,
   type Node, type Edge, type NodeProps, type EdgeProps,
@@ -174,7 +174,7 @@ function primaryParents(nodes: WorkflowNode[], edges: { from: string; to: string
 }
 
 function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], iterations: { id: string; title: string }[]): {
-  nodes: Node[]; edges: Edge[];
+  nodes: Node[]; edges: Edge[]; trailIds: string[];
 } {
   const ranks = computeRanks(nodes, edges);
   const { parent, candidates } = primaryParents(nodes, edges, ranks);
@@ -186,8 +186,9 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
   const isRoot = new Set(nodes.map(n => n.id));
   for (const [to, from] of parent) {
     isRoot.delete(to);
-    const f = nodes.find(n => n.id === from)!;
-    const t = nodes.find(n => n.id === to)!;
+    const f = nodes.find(n => n.id === from);
+    const t = nodes.find(n => n.id === to);
+    if (!f || !t) continue;
     if (!children.has(from)) children.set(from, []);
     children.get(from)!.push(t);
   }
@@ -220,19 +221,20 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
   const campNodes: Node[] = [];
   const seenIter = new Set<string>();
   trail.forEach((n, i) => {
-    if (seenIter.has(n.iteration)) return;
-    seenIter.add(n.iteration);
+    const iterKey = n.iteration ?? "";
+    if (seenIter.has(iterKey)) return;
+    seenIter.add(iterKey);
     if (i === 0) return;
     const p = pos.get(n.id);
     if (!p) return;
-    const title = iterations.find(it => it.id === n.iteration)?.title ?? n.iteration;
+    const title = iterations.find(it => it.id === iterKey)?.title ?? iterKey;
     campNodes.push({
-      id: `camp-${n.iteration}`,
+      id: `camp-${iterKey}`,
       type: "camp",
       position: { x: p.x - 62, y: p.y - PIN - 46 },
       selectable: false,
       draggable: false,
-      data: { label: `${n.iteration} · ${title}` },
+      data: { label: `${iterKey} · ${title}` },
     });
   });
 
@@ -278,7 +280,7 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
       style: { stroke: EDGE_COLOR, strokeWidth: 1.4, opacity: 0.55, strokeDasharray: "5 5" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 11, height: 11, color: EDGE_COLOR },
     }));
-  return { nodes: [...campNodes, ...rfNodes], edges: [...trailEdges, ...rfEdges] };
+  return { nodes: [...campNodes, ...rfNodes], edges: [...trailEdges, ...rfEdges], trailIds: trail.map(n => n.id) };
 }
 
 /** 步道线（思维导图枝条）：已行走 = 橙色实线（纸色 halo 衬底），
@@ -318,15 +320,17 @@ function Legend() {
   );
 }
 
-export default function FlowView({ nodes, edges, iterations, selectedId, readyIds, onSelect }: {
+export default function FlowView({ nodes, edges, iterations, selectedId, readyIds, onSelect, onTrailChange }: {
   nodes: WorkflowNode[];
   edges: { from: string; to: string }[];
   iterations: { id: string; title: string }[];
   selectedId: string | null;
   readyIds: Set<string>;
   onSelect: (id: string) => void;
+  /** 布局完成后回报旅程顺序（步道键盘导航用） */
+  onTrailChange?: (trailIds: string[]) => void;
 }) {
-  const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
+  const { nodes: rfNodes, edges: rfEdges, trailIds } = useMemo(() => {
     const laid = layout(nodes, edges, iterations);
     // 依赖高亮：选中节点的出入边加强，其余淡化；步道线恒常显示
     const styled = laid.edges.map(e => {
@@ -347,8 +351,13 @@ export default function FlowView({ nodes, edges, iterations, selectedId, readyId
       ...n,
       data: { ...n.data, ready: readyIds.has(n.id), onSelect } as Record<string, unknown>,
     }));
-    return { nodes: withSelect, edges: styled };
+    return { nodes: withSelect, edges: styled, trailIds: laid.trailIds };
   }, [nodes, edges, iterations, selectedId, readyIds, onSelect]);
+
+  // 布局变化（筛选/数据更新）后同步旅程顺序给父组件
+  useEffect(() => {
+    onTrailChange?.(trailIds);
+  }, [trailIds, onTrailChange]);
 
   return (
     <div className="flow">

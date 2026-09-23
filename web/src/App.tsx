@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkflowJson, WorkflowNode } from "../../src/types";
 import FlowView from "./FlowView";
 import DetailPanel from "./DetailPanel";
@@ -78,7 +78,7 @@ function countLayers(nodes: WorkflowNode[], edges: { from: string; to: string }[
   const ids = new Set(nodes.map(n => n.id));
   const depth = new Map(nodes.map(n => [n.id, 0]));
   const indeg = new Map(nodes.map(n => [n.id, 0]));
-  const dependents = new Map(nodes.map(n => [n.id, []]));
+  const dependents = new Map<string, string[]>(nodes.map(n => [n.id, []]));
   for (const e of edges) {
     if (!ids.has(e.from) || !ids.has(e.to)) continue;
     indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
@@ -157,6 +157,59 @@ export default function App() {
   );
   const visibleIds = new Set(visible.map(n => n.id));
   const edges = wf.edges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
+
+  // 旅程顺序由 FlowView 布局后回报（ref 避免不必要的重渲染）
+  const trailRef = useRef<string[]>([]);
+  const onTrailChange = useCallback((ids: string[]) => { trailRef.current = ids; }, []);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // 键盘导航：j/k 或 ↑/↓ 沿步道移动选中；Enter/Shift+Enter 在搜索匹配间跳转；/ 聚焦搜索；Esc 关闭/退出
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const inField = t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
+      const trail = trailRef.current;
+
+      if (e.key === "Escape") {
+        if (inField) { (t as HTMLInputElement).blur(); return; }
+        setSelected(cur => { if (cur) e.preventDefault(); return null; });
+        return;
+      }
+      if (inField) {
+        // 搜索框内：Enter 在匹配间循环跳转（按步道顺序）
+        if (e.key === "Enter" && trail.length > 0) {
+          const matches = trail.filter(id => visibleIds.has(id));
+          if (matches.length === 0) return;
+          const cur = trailRef.current.indexOf(selected ?? "");
+          const from = cur < 0 ? (e.shiftKey ? matches.length - 1 : 0)
+            : matches.indexOf(trail[cur]);
+          const next = from < 0
+            ? (e.shiftKey ? matches[matches.length - 1] : matches[0])
+            : matches[(from + (e.shiftKey ? -1 : 1) + matches.length) % matches.length];
+          setSelected(next);
+          e.preventDefault();
+        }
+        return;
+      }
+      if (e.key === "/") {
+        searchRef.current?.focus();
+        e.preventDefault();
+        return;
+      }
+      const step = e.key === "j" || e.key === "ArrowDown" ? 1
+        : e.key === "k" || e.key === "ArrowUp" ? -1 : 0;
+      if (step !== 0 && trail.length > 0) {
+        const cur = selected ? trail.indexOf(selected) : -1;
+        const next = cur < 0
+          ? (step > 0 ? trail[0] : trail[trail.length - 1])
+          : trail[(cur + step + trail.length) % trail.length];
+        setSelected(next);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, visibleIds]);
 
   const node = wf.nodes.find(n => n.id === selected) ?? null;
   const errors = (wf.issues ?? []).filter(i => i.level === "error");
@@ -249,14 +302,22 @@ export default function App() {
             </button>
           )}
         </div>
-        <input
-          className="search"
-          type="search"
-          placeholder="搜索节点…"
-          aria-label="搜索节点"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
+        <div className="search-wrap">
+          <input
+            ref={searchRef}
+            className="search"
+            type="search"
+            placeholder="搜索节点…（/ 聚焦，Enter 跳转匹配）"
+            aria-label="搜索节点"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {q && (
+            <span className="search-count" aria-live="polite">
+              {visible.length}/{scopeNodes.length}
+            </span>
+          )}
+        </div>
         <nav className="segments">
           <button className={tab === "__all__" ? "segment active" : "segment"} onClick={() => setTab("__all__")}>
             全部
@@ -274,7 +335,7 @@ export default function App() {
         </nav>
       </header>
       <div className="flow-wrap">
-        <FlowView nodes={visible} edges={edges} iterations={wf.iterations} selectedId={selected} readyIds={readyIds} onSelect={setSelected} />
+        <FlowView nodes={visible} edges={edges} iterations={wf.iterations} selectedId={selected} readyIds={readyIds} onSelect={setSelected} onTrailChange={onTrailChange} />
         {visible.length === 0 && (
           <div className="flow-empty">
             没有匹配的节点

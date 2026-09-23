@@ -40,6 +40,7 @@ cd /path/to/your-project
 waymark init       # 生成 plan/ 骨架
 waymark check      # 校验规范（可接 CI，出错 exit 1）
 waymark sync       # 解析 plan + 代码证据 → .waymark/workflow.json
+waymark status     # 终端进度一览（进度条 / 可开工 / 受阻清单）
 waymark render     # 生成自包含 .waymark/index.html
 waymark ui         # 本地实时页面（默认 http://localhost:7300）
 ```
@@ -59,6 +60,8 @@ waymark reopen M-xxx                        # 撤销误操作：done/blocked/dro
 
 ![waymark 进度页](docs/screenshot.png)
 
+页面支持键盘操作：`j`/`k`（或 `↑`/`↓`）沿步道顺序移动选中节点，`Enter` 在搜索匹配间跳转，`/` 聚焦搜索，`Esc` 关闭详情。
+
 ## 🗺️ 命令一览
 
 | 你说 | 它做什么 |
@@ -66,6 +69,7 @@ waymark reopen M-xxx                        # 撤销误操作：done/blocked/dro
 | `waymark init` | 在项目根生成 `plan/` 骨架（overview + 迭代 + 示例节点） |
 | `waymark check` | 校验 /plan 规范：id 唯一 / 依赖存在 / 无循环 / 迭代引用 / 总览一致 / 正则合法 |
 | `waymark sync` | 解析 plan + 证据推断 → 生成 `.waymark/workflow.json`（含警示） |
+| `waymark status [--fresh]` | 终端进度一览：ASCII 进度条、状态统计、可开工/受阻清单、规范错误与数据新鲜度；`--fresh` 在数据缺失时自动 sync |
 | `waymark render [--fresh]` | 由 workflow.json 生成自包含 `.waymark/index.html`；`--fresh` 在数据缺失/过期时自动 sync 后再渲染 |
 | `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 热重载；页面内可直接认领开工/标记完成（与 CLI/MCP 同引擎，含护栏警告） |
 | `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
@@ -142,7 +146,7 @@ plan/
 
 ```
 src/
-├── cli.ts          # 入口：init / check / sync / start / done / block / drop / reopen / ready / render / ui / mcp / hub
+├── cli.ts          # 入口：init / check / sync / status / start / done / block / drop / reopen / ready / render / ui / mcp / hub
 ├── parser/         # plan/ 文档解析（frontmatter + 完成记录 + 总览表）
 ├── graph/          # DAG 构建（拓扑排序/环检测）与 check 校验规则
 ├── infer/          # 证据四维评分 → 状态推断

@@ -8,6 +8,7 @@ import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
 import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
 import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "./plan/commands.js";
+import { statusReport } from "./plan/status.js";
 import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 
 /**
@@ -159,6 +160,19 @@ export function createProgram(): Command {
       console.log(`可开工 ${items.length} 个节点:`);
       for (const it of items) {
         console.log(`  ${it.id}  ${it.title}${it.iteration ? `  [${it.iteration}]` : ""}`);
+      }
+    });
+
+  withRoot(program.command("status"))
+    .description("终端进度一览：进度条、状态统计、可开工/受阻清单（读 workflow.json）")
+    .option("--fresh", "workflow.json 缺失时自动 sync 后展示")
+    .action(async (opts: { fresh?: boolean }, cmd: Command) => {
+      const root = rootOf(cmd);
+      try {
+        console.log(await statusReport(root, { fresh: opts.fresh }));
+      } catch (e) {
+        console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+        process.exitCode = 1;
       }
     });
 
