@@ -165,7 +165,7 @@ export function createProgram(): Command {
 
   withRoot(program.command("status"))
     .description("终端进度一览：进度条、状态统计、可开工/受阻清单（读 workflow.json）")
-    .option("--fresh", "workflow.json 缺失时自动 sync 后展示")
+    .option("--fresh", "数据缺失或过期时自动 sync 后展示（与 render --fresh 同口径）")
     .action(async (opts: { fresh?: boolean }, cmd: Command) => {
       const root = rootOf(cmd);
       try {

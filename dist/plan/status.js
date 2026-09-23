@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { WorkflowJsonSchema } from "../types.js";
+import { planNewerThan } from "../render/render.js";
 const BAR_W = 24;
 function relTime(iso, now) {
     const t = new Date(iso).getTime();
@@ -62,13 +63,16 @@ export function renderStatus(wf, now = new Date()) {
         lines.push("", `生成于 ${gen}（waymark sync 更新）`);
     return lines.join("\n");
 }
-/** 读 .waymark/workflow.json 并渲染状态一览；缺失时按 opts.fresh 决定是否自动 sync。 */
+/** 读 .waymark/workflow.json 并渲染状态一览；缺失时按 opts.fresh 决定是否自动 sync，
+ *  过期时 --fresh 自动重新 sync、无 --fresh 则在输出末尾提示（与 render --fresh 同口径）。 */
 export async function statusReport(root, opts = {}) {
     const wfFile = path.join(root, ".waymark", "workflow.json");
-    if (!fs.existsSync(wfFile)) {
-        if (!opts.fresh) {
-            throw new Error("未找到 .waymark/workflow.json，请先运行 waymark sync（或使用 --fresh 自动同步）");
-        }
+    const missing = !fs.existsSync(wfFile);
+    const stale = !missing && planNewerThan(root, wfFile);
+    if (missing && !opts.fresh) {
+        throw new Error("未找到 .waymark/workflow.json，请先运行 waymark sync（或使用 --fresh 自动同步）");
+    }
+    if (missing || (stale && opts.fresh)) {
         const { buildWorkflow } = await import("../sync/build.js");
         const { writeWorkflow } = await import("../render/render.js");
         const { workflow, issues } = await buildWorkflow(root);
@@ -81,5 +85,8 @@ export async function statusReport(root, opts = {}) {
     if (!parsed.success) {
         throw new Error(`workflow 数据不符合契约: ${parsed.error.message}`);
     }
-    return renderStatus(parsed.data, opts.now);
+    const report = renderStatus(parsed.data, opts.now);
+    return stale && !opts.fresh
+        ? `${report}\n\n⚠ plan/ 或证据目录在 sync 之后有改动，数据可能过期——运行 waymark sync（或 waymark status --fresh）更新`
+        : report;
 }

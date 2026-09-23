@@ -69,9 +69,9 @@ waymark reopen M-xxx                        # 撤销误操作：done/blocked/dro
 | `waymark init` | 在项目根生成 `plan/` 骨架（overview + 迭代 + 示例节点） |
 | `waymark check` | 校验 /plan 规范：id 唯一 / 依赖存在 / 无循环 / 迭代引用 / 总览一致 / 正则合法 |
 | `waymark sync` | 解析 plan + 证据推断 → 生成 `.waymark/workflow.json`（含警示） |
-| `waymark status [--fresh]` | 终端进度一览：ASCII 进度条、状态统计、可开工/受阻清单、规范错误与数据新鲜度；`--fresh` 在数据缺失时自动 sync |
+| `waymark status [--fresh]` | 终端进度一览：ASCII 进度条、状态统计、可开工/受阻清单、规范错误与数据新鲜度；`--fresh` 在数据缺失或过期时自动 sync（与 render --fresh 同口径），无 `--fresh` 时过期仅提示 |
 | `waymark render [--fresh]` | 由 workflow.json 生成自包含 `.waymark/index.html`；`--fresh` 在数据缺失/过期时自动 sync 后再渲染 |
-| `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 推送数据局部刷新（保留画布视口）；页面内可直接认领开工/标记完成（与 CLI/MCP 同引擎，含护栏警告） |
+| `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 推送数据局部刷新（保留画布视口）；页面内可直接认领开工/标记完成/受阻/放弃/重新打开（均可填操作说明，与 CLI/MCP 同引擎，含护栏警告） |
 | `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
 | `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收；依赖未完成/验收未勾/原状态异常时给出护栏警告 |
 | `waymark block <id> -m <原因>` | 标记受阻（blocked 旁路），说明带 `[blocked]` 前缀入完成记录；解除阻塞用 `reopen` |

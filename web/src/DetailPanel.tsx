@@ -96,9 +96,11 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       const resp = await fetch(`/api/${kind}`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-waymark": "ui" },
-        body: JSON.stringify(kind === "done"
-          ? { id: node.id, allAcceptance: accAll, note: note.trim() || undefined }
-          : { id: node.id }),
+        body: JSON.stringify({
+          id: node.id,
+          ...(kind === "done" ? { allAcceptance: accAll } : {}),
+          ...(note.trim() ? { note: note.trim() } : {}),
+        }),
       });
       const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
       if (!resp.ok || !data?.ok) {
@@ -194,23 +196,22 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
               {busy === "drop" ? "提交中…" : "放弃"}
             </button>
           )}
-          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress") && (
-            <>
-              <label className="act-acc">
-                <input type="checkbox" checked={accAll} onChange={e => setAccAll(e.target.checked)} />
-                同时勾选全部验收
-              </label>
-              <input
-                className="act-note"
-                type="text"
-                placeholder="完成说明（写入「完成记录」，可留空）"
-                aria-label="完成说明"
-                maxLength={200}
-                value={note}
-                onChange={e => setNote(e.target.value)}
-              />
-            </>
+          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
+            || node.declaredStatus === "blocked") && (
+            <label className="act-acc">
+              <input type="checkbox" checked={accAll} onChange={e => setAccAll(e.target.checked)} />
+              同时勾选全部验收
+            </label>
           )}
+          <input
+            className="act-note"
+            type="text"
+            placeholder="操作说明（写入「完成记录」，可留空）"
+            aria-label="操作说明"
+            maxLength={200}
+            value={note}
+            onChange={e => setNote(e.target.value)}
+          />
         </div>
       )}
 

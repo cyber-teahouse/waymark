@@ -107,4 +107,23 @@ describe("waymark status 命令", () => {
     const text = await statusReport(root);
     expect(text).toContain("进度工作流");
   });
+
+  it("数据过期时 --fresh 自动重新 sync，无 --fresh 输出过期提示（与 render --fresh 同口径）", async () => {
+    const root = await syncedProject();
+    // 改动 plan 内容并把 mtime 推到未来 → workflow.json 过期
+    const f = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace("认证模块", "认证模块改名"));
+    const future = new Date(Date.now() + 10_000);
+    fs.utimesSync(f, future, future);
+
+    // 无 --fresh：按当前数据展示，但提示过期
+    const staleReport = await statusReport(root);
+    expect(staleReport).toContain("数据可能过期");
+
+    // --fresh：先重新 sync 再展示，workflow.json 反映最新 plan
+    const freshReport = await statusReport(root, { fresh: true });
+    expect(freshReport).not.toContain("数据可能过期");
+    const wf = JSON.parse(fs.readFileSync(path.join(root, ".waymark", "workflow.json"), "utf8"));
+    expect(wf.nodes.find((n: { id: string }) => n.id === "M2-auth").title).toBe("认证模块改名");
+  });
 });
