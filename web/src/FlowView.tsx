@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import {
-  ReactFlow, Background, Controls, MarkerType, Handle, Position, Panel,
+  ReactFlow, Controls, MarkerType, Handle, Position, Panel,
   type Node, type Edge, type NodeProps,
 } from "@xyflow/react";
 import dagre from "@dagrejs/dagre";
@@ -12,8 +12,8 @@ export const STATUS_LABEL: Record<string, string> = {
 
 const NODE_W = 248;
 const NODE_H = 78;
-const EDGE_COLOR = "#B7C0CB";
-const EDGE_HIT = "#2C55E0";
+const EDGE_COLOR = "#B4AC97";
+const EDGE_HIT = "#B04A24";
 
 interface PlanNodeData extends Record<string, unknown> {
   wf: WorkflowNode;
@@ -111,6 +111,21 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[]): {
   return { nodes: rfNodes, edges: rfEdges };
 }
 
+/** 等高线地形 backdrop：手绘感曲线层叠，图纸质感（静态纸纹，不随平移缩放）。 */
+function TopoBackdrop() {
+  return (
+    <svg className="topo" aria-hidden="true" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice">
+      <path d="M-60,150 C180,90 360,230 600,170 S980,60 1460,150" />
+      <path d="M-60,230 C200,170 380,310 620,250 S1000,140 1460,230" />
+      <path d="M-60,310 C220,250 400,390 640,330 S1020,220 1460,310" />
+      <path d="M-60,560 C240,500 420,640 660,580 S1040,470 1460,560" />
+      <path d="M-60,645 C260,585 440,725 680,665 S1060,555 1460,645" />
+      <path d="M-60,730 C280,670 460,810 700,750 S1080,640 1460,730" />
+      <path d="M-60,815 C300,755 480,895 720,835 S1100,725 1460,815" />
+    </svg>
+  );
+}
+
 function Legend() {
   const items: [string, string][] = [
     ["done", "已完成"], ["in-progress", "进行中"], ["planned", "未开始"],
@@ -163,6 +178,7 @@ export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect 
 
   return (
     <div className="flow">
+      <TopoBackdrop />
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -172,7 +188,6 @@ export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect 
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, n) => onSelect(n.id)}
       >
-        <Background gap={22} size={1.4} color="#E3E7EC" />
         <Controls showInteractive={false} />
         <Legend />
       </ReactFlow>

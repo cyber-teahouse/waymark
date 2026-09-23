@@ -40,7 +40,7 @@ function EmptyState() {
       <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true">
         <circle
           cx="36" cy="36" r="26" fill="none"
-          stroke="#DFE4EA" strokeWidth="3" strokeLinecap="round" strokeDasharray="5.5 8"
+          stroke="#C9BC9C" strokeWidth="3" strokeLinecap="round" strokeDasharray="5.5 8"
         />
       </svg>
       <div className="empty-title">还没有工作流数据</div>
