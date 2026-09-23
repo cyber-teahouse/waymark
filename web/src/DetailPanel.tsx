@@ -112,7 +112,11 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         block: "标记受阻", drop: "放弃", reopen: "重新打开",
       }[kind];
       setActionMsg({ ok: true, text: warns.length ? `已${verb}。注意：${warns.join("；")}` : `已${verb}` });
-      setTimeout(() => window.location.reload(), 1500);
+      // SSE 推流通常先到，这里定时器兜底；刷新前打标记，避免与 SSE 触发的 reload 叠加
+      setTimeout(() => {
+        try { sessionStorage.setItem("waymark.reloadedAt", String(Date.now())); } catch { /* 忽略 */ }
+        window.location.reload();
+      }, 1500);
     } catch {
       setActionMsg({ ok: false, text: "网络错误——此页面可能不是 waymark ui 服务提供的，操作未生效" });
       setBusy(null);
