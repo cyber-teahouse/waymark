@@ -274,7 +274,7 @@ export default function App() {
         </nav>
       </header>
       <div className="flow-wrap">
-        <FlowView nodes={visible} edges={edges} selectedId={selected} readyIds={readyIds} onSelect={setSelected} />
+        <FlowView nodes={visible} edges={edges} iterations={wf.iterations} selectedId={selected} readyIds={readyIds} onSelect={setSelected} />
         {visible.length === 0 && (
           <div className="flow-empty">
             没有匹配的节点

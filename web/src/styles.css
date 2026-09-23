@@ -187,7 +187,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   width: 100%; height: 100%;
   pointer-events: none;
 }
-.topo path { fill: none; stroke: var(--topo-line); stroke-width: 1.1; opacity: 0.75; }
+.topo path { stroke: none; }
+.topo path:nth-of-type(1) { fill: #EAE1C9; }
+.topo path:nth-of-type(2) { fill: #E2D6B6; }
+.topo path:nth-of-type(3) { fill: #DACDA9; }
 
 .flow-empty {
   position: absolute; inset: 0; z-index: 5;
@@ -233,49 +236,71 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .react-flow__edge-path { stroke: var(--edge); stroke-width: 1.5; }
 
-/* ============ 节点卡片 248×78（路标钉） ============ */
-.plan-node {
-  width: 248px; height: 78px;
-  position: relative;
+/* ============ 路标：地图图钉 + 铭牌 ============ */
+.wp {
+  width: 204px; height: 152px;
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer;
+  animation: wp-in 480ms ease-out backwards;
+}
+@keyframes wp-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .wp { animation: none; } }
+
+/* 图钉：泪滴形（圆 + 45° 折角），状态着色，进行中呼吸脉冲 */
+.wp-pin {
+  flex: none; width: 34px; height: 34px;
+  border-radius: 50% 50% 50% 5px;
+  transform: rotate(-45deg);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card);
+  border: 2px solid var(--st, var(--planned));
+  box-shadow: var(--shadow-print);
+  transition: box-shadow 140ms ease;
+}
+.wp-glyph {
+  transform: rotate(45deg);
+  font-size: 13px; line-height: 1;
+  font-family: var(--font-mono);
+  color: var(--st, var(--planned));
+}
+.wp.st-done .wp-pin { background: var(--done); border-color: var(--done); }
+.wp.st-done .wp-glyph { color: #fff; }
+.wp.st-in-progress .wp-pin { animation: wp-pulse 1.6s ease-in-out infinite; }
+@keyframes wp-pulse {
+  0%, 100% { box-shadow: var(--shadow-print); }
+  50% { box-shadow: 0 0 0 7px rgba(194, 122, 14, 0.16); }
+}
+.wp.cycle .wp-pin { border-style: dashed; border-color: var(--blocked); }
+
+/* 铭牌：钉下悬挂 */
+.wp-label {
+  margin-top: 8px; width: 100%;
   display: flex; flex-direction: column;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px 8px 14px;
-  overflow: hidden;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 9px;
   box-shadow: var(--shadow-print);
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition: box-shadow 140ms ease, border-color 140ms ease;
 }
-.plan-node::before {
-  content: "";
-  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  background: var(--st, var(--planned));
-  border-radius: 10px 0 0 10px;
-}
-.plan-node.cycle { border: 1px dashed var(--blocked); }
-.plan-node:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
-.plan-node.selected {
-  border-color: var(--st, var(--planned));
-  outline: 1.5px dashed var(--st, var(--planned));
-  outline-offset: 3px;
-  box-shadow: var(--shadow-lift);
-}
-.plan-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.plan-node { cursor: pointer; }
+.wp:hover .wp-pin { box-shadow: var(--shadow-lift); }
+.wp:hover .wp-label { box-shadow: var(--shadow-lift); }
+.wp.selected .wp-pin { border-color: var(--accent); box-shadow: 0 0 0 3px var(--wip-bg), var(--shadow-lift); }
+.wp.selected .wp-label { border-color: var(--accent); outline: 1.5px dashed var(--accent); outline-offset: 2px; }
+.wp:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
 
-.node-eyebrow { display: flex; align-items: center; justify-content: space-between; }
-.node-id {
+.wp-eyebrow {
+  display: flex; align-items: center; justify-content: space-between;
   font-family: var(--font-mono); font-size: 10px; color: var(--ink-3);
   letter-spacing: 0.06em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.node-type { flex: none; margin-left: 6px; font-size: 10px; color: var(--st, var(--ink-3)); }
-.node-title {
-  margin-top: 3px;
-  font-size: 13px; font-weight: 600; color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.wp-type { color: var(--st, var(--ink-3)); }
+.wp-title {
+  margin-top: 2px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-height: 32px;
 }
-.node-meta { margin-top: auto; display: flex; align-items: center; gap: 6px; min-height: 14px; }
+.wp-meta { margin-top: 4px; display: flex; align-items: center; gap: 6px; min-height: 14px; }
 
 .acc-track { flex: none; width: 56px; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .acc-fill { display: block; height: 100%; border-radius: 2px; background: var(--st, var(--planned)); }
@@ -291,10 +316,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .node-chip.ready { background: var(--done-bg); color: var(--done); border-color: rgba(46, 107, 78, 0.3); }
 .warn-callout.ready { background: var(--done-bg); border-color: rgba(46, 107, 78, 0.3); }
 
-.plan-node .react-flow__handle {
-  width: 5px; height: 5px; min-width: 0; min-height: 0;
-  background: var(--edge); border: 1px solid var(--card); border-radius: 50%;
-}
+.wp .react-flow__handle { opacity: 0; pointer-events: none; }
 
 /* ============ 详情面板（巡查记录单） ============ */
 .detail {
@@ -492,6 +514,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     animation: sheet-in 200ms ease-out;
   }
   .legend { display: none; } /* 窄屏空间有限，图例隐藏（状态以色彩与节点芯片表达） */
+  .compass { display: none; } /* 窄屏隐藏罗盘装饰 */
 }
 
 @keyframes sheet-in { from { transform: translateY(28px); } to { transform: translateY(0); } }
@@ -539,11 +562,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .act-note:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--wip-bg); }
 .act-note::placeholder { color: var(--ink-3); }
 
-/* ── 步道线：圆点虚线，贯穿路标 ─────────────────────── */
-.trail-path {
+/* ── 步道线：已行走 = 橙色实线；未行走 = 淡色圆点虚线 ────────── */
+.trail-walked {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 2.6;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+.trail-path {
+  fill: none;
+  stroke: #B4A67F;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-dasharray: 0.1 9;
   opacity: 0.85;
@@ -561,4 +591,30 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   width: 22px;
   border-top: 2.4px dotted var(--accent);
   opacity: 0.7;
+}
+
+/* ── 营地旗标 + 罗盘：地图质感装饰 ─────────────────────── */
+.react-flow__node-camp { pointer-events: none; }
+.camp {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--ink-3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 7px;
+  box-shadow: var(--shadow-print);
+}
+.camp-flag { fill: var(--accent); stroke: var(--accent-deep); }
+.compass {
+  position: absolute; right: 18px; bottom: 14px; z-index: 5;
+  pointer-events: none; opacity: 0.85;
+}
+.compass-ring { fill: var(--card); stroke: var(--line); }
+.compass-needle { fill: var(--accent); opacity: 0.8; }
+.compass-dot { fill: var(--ink-3); }
+.compass-n {
+  fill: var(--ink-3); font-size: 9px;
+  text-anchor: middle; font-family: var(--font-mono);
 }

@@ -9,19 +9,25 @@ export const STATUS_LABEL: Record<string, string> = {
   planned: "未开始", "in-progress": "进行中", done: "已完成", blocked: "受阻", dropped: "已放弃",
 };
 
-const NODE_W = 248;
-const NODE_H = 78;
+const NODE_W = 204;
+const NODE_H = 152;
 const EDGE_COLOR = "#8A7B5C";
 const EDGE_HIT = "#B04A24";
 
 interface PlanNodeData extends Record<string, unknown> {
   wf: WorkflowNode;
   ready: boolean;
+  rank: number;
   onSelect: (id: string) => void;
 }
 
+/** 路标图钉：状态决定形态（实心=已走、脉冲=当前、空心=未走）。 */
+const STATUS_GLYPH: Record<string, string> = {
+  done: "✓", "in-progress": "●", planned: "○", blocked: "▲", dropped: "✕",
+};
+
 function PlanNode({ data, selected }: NodeProps) {
-  const { wf, ready, onSelect } = data as PlanNodeData;
+  const { wf, ready, rank, onSelect } = data as PlanNodeData;
   const accTotal = wf.acceptance.length;
   const accDone = wf.acceptance.filter(a => a.done).length;
   const depCount = wf.deps.length;
@@ -34,7 +40,7 @@ function PlanNode({ data, selected }: NodeProps) {
     "按 Enter 查看详情",
   ].filter(Boolean).join("，");
   const cls = [
-    "plan-node",
+    "wp",
     `st-${wf.displayStatus}`,
     wf.cycle ? "cycle" : "",
     selected ? "selected" : "",
@@ -45,6 +51,7 @@ function PlanNode({ data, selected }: NodeProps) {
       role="button"
       tabIndex={0}
       aria-label={aria}
+      style={{ animationDelay: `${Math.min(rank, 12) * 90}ms` }}
       onClick={() => onSelect(wf.id)}
       onKeyDown={e => {
         if (e.key === "Enter" || e.key === " ") {
@@ -53,39 +60,65 @@ function PlanNode({ data, selected }: NodeProps) {
         }
       }}
     >
-      <Handle type="target" position={Position.Top} />
-      <div className="node-eyebrow">
-        <span className="node-id">{wf.id}</span>
-        <span className="node-type" title={wf.type === "milestone" ? "里程碑" : "任务"}>
-          {wf.type === "milestone" ? "◆" : "◇"}
+      <Handle type="target" position={Position.Left} className="wp-handle" />
+      <span className="wp-pin" aria-hidden="true">
+        <span className="wp-glyph">{STATUS_GLYPH[wf.displayStatus] ?? "○"}</span>
+      </span>
+      <span className="wp-label">
+        <span className="wp-eyebrow">
+          <span>{wf.id}</span>
+          <span className="wp-type" title={wf.type === "milestone" ? "里程碑" : "任务"}>
+            {wf.type === "milestone" ? "◆" : "◇"}
+          </span>
         </span>
-      </div>
-      <div className="node-title" title={wf.title}>{wf.title}</div>
-      <div className="node-meta">
-        {accTotal > 0 && (
-          <>
-            <span className="acc-track" aria-hidden="true">
-              <span className="acc-fill" style={{ width: `${Math.round((accDone / accTotal) * 100)}%` }} />
-            </span>
-            <span className="acc-nums">{accDone}/{accTotal}</span>
-          </>
-        )}
-        {wf.displayStatus === "in-progress" && <span className="wip-dot" title="进行中" />}
-        {ready && <span className="node-chip ready">可开工</span>}
-        {wf.warning === "evidence-insufficient" && <span className="node-chip">证据不足</span>}
-        {wf.warning === "ready-to-complete" && <span className="node-chip">可标记完成</span>}
-        {wf.warning === "stalled" && <span className="node-chip">无进展证据</span>}
-        {wf.cycle && <span className="node-chip cyc">循环依赖</span>}
-      </div>
-      <Handle type="source" position={Position.Bottom} />
+        <span className="wp-title" title={wf.title}>{wf.title}</span>
+        <span className="wp-meta">
+          {accTotal > 0 && (
+            <>
+              <span className="acc-track" aria-hidden="true">
+                <span className="acc-fill" style={{ width: `${Math.round((accDone / accTotal) * 100)}%` }} />
+              </span>
+              <span className="acc-nums">{accDone}/{accTotal}</span>
+            </>
+          )}
+          {ready && <span className="node-chip ready">可开工</span>}
+          {wf.warning === "evidence-insufficient" && <span className="node-chip">证据不足</span>}
+          {wf.warning === "ready-to-complete" && <span className="node-chip">可标记完成</span>}
+          {wf.warning === "stalled" && <span className="node-chip">无进展证据</span>}
+          {wf.cycle && <span className="node-chip cyc">循环依赖</span>}
+        </span>
+      </span>
+      <Handle type="source" position={Position.Right} className="wp-handle" />
     </div>
   );
 }
 
-const nodeTypes = { plan: PlanNode };
+const nodeTypes = { plan: PlanNode, camp: CampDecor };
 
-const ROW_H = 152;
-const COL_W = NODE_W + 46;
+/** 营地旗标：迭代分界处的小旗，非交互。 */
+function CampDecor({ data }: NodeProps) {
+  const { label } = data as { label: string };
+  return (
+    <div className="camp" aria-hidden="true">
+      <svg width="12" height="14" viewBox="0 0 12 14">
+        <path d="M1,13 V1 M1,1 L11,3.5 L1,6 Z" className="camp-flag" />
+      </svg>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+/** 罗盘装饰：右下角固定，强化地图质感。 */
+function Compass() {
+  return (
+    <svg className="compass" width="60" height="60" viewBox="0 0 60 60" aria-hidden="true">
+      <circle cx="30" cy="32" r="24" className="compass-ring" />
+      <circle cx="30" cy="32" r="2" className="compass-dot" />
+      <path d="M30,12 L34,32 L30,52 L26,32 Z" className="compass-needle" />
+      <text x="30" y="10" className="compass-n">N</text>
+    </svg>
+  );
+}
 
 /** 最长路径分层：依赖必然从浅层指向深层（DAG 保证严格递增）。 */
 function computeRanks(nodes: WorkflowNode[], edges: { from: string; to: string }[]): Map<string, number> {
@@ -113,90 +146,156 @@ function computeRanks(nodes: WorkflowNode[], edges: { from: string; to: string }
 }
 
 /**
- * 之字形登山步道布局：按依赖层从上往下铺，奇数层左右折返（像山道的之字弯），
- * 每层叠加正弦摆动 + 节点微抖动，让路「活」起来，而不是死板的正交网格。
- * 同时按行走顺序串联一条点状步道线（trail edges），强化"路标"隐喻。
+ * 思维导图式山径：以依赖树为骨架，根居左、枝向右发散。
+ * 每枚路标认一位"主亲"（依赖层最浅的父节点），DFS 层叠布局——
+ * 叶子自上而下各占一道，父节点垂直居中于子树，枝条用 S 形曲线。
+ * 主亲枝 = 步道（旅程顺序），跨枝依赖退化为淡色虚线；
+ * 迭代分界处立营地旗标，角落配罗盘装饰。
  */
-function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[]): { nodes: Node[]; edges: Edge[] } {
+const MM_X0 = 240;        // 根节点钉心 x
+const MM_LEVEL = 380;     // 层间距（枝条长度：卡缘间隙 176 + 卡宽 204）
+const MM_LEAF_GAP = 176;  // 叶子垂直间距（≥ NODE_H + 呼吸）
+
+/** 选主亲：依赖层最浅者（并列取 id 小者），保证主亲图是严格树。 */
+function primaryParents(nodes: WorkflowNode[], edges: { from: string; to: string }[], ranks: Map<string, number>) {
+  const ids = new Set(nodes.map(n => n.id));
+  const parent = new Map<string, string>();
+  const candidates: { from: string; to: string }[] = [];
+  for (const e of edges) {
+    if (!ids.has(e.from) || !ids.has(e.to)) continue;
+    candidates.push(e);
+    const cur = parent.get(e.to);
+    const better = cur === undefined
+      || (ranks.get(e.from) ?? 0) < (ranks.get(cur) ?? 0)
+      || ((ranks.get(e.from) ?? 0) === (ranks.get(cur) ?? 0) && e.from < cur);
+    if (better) parent.set(e.to, e.from);
+  }
+  return { parent, candidates };
+}
+
+function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], iterations: { id: string; title: string }[]): {
+  nodes: Node[]; edges: Edge[];
+} {
   const ranks = computeRanks(nodes, edges);
-  const byRank = new Map<number, WorkflowNode[]>();
-  nodes.forEach(n => {
-    const r = ranks.get(n.id) ?? 0;
-    if (!byRank.has(r)) byRank.set(r, []);
-    byRank.get(r)!.push(n);
-  });
-  const rankList = [...byRank.keys()].sort((a, b) => a - b);
+  const { parent, candidates } = primaryParents(nodes, edges, ranks);
+  const iterId = (a: WorkflowNode, b: WorkflowNode) =>
+    `${a.iteration}${a.id}`.localeCompare(`${b.iteration}${b.id}`);
+
+  // 主亲树的孩子表（按迭代+id 排序，保证旅程顺序稳定）
+  const children = new Map<string, WorkflowNode[]>();
+  const isRoot = new Set(nodes.map(n => n.id));
+  for (const [to, from] of parent) {
+    isRoot.delete(to);
+    const f = nodes.find(n => n.id === from)!;
+    const t = nodes.find(n => n.id === to)!;
+    if (!children.has(from)) children.set(from, []);
+    children.get(from)!.push(t);
+  }
+  for (const list of children.values()) list.sort(iterId);
+  const roots = nodes.filter(n => isRoot.has(n.id)).sort(iterId);
+
+  // DFS 层叠布局：叶子依次占一道，父节点居中于子树
   const pos = new Map<string, { x: number; y: number }>();
-  const journey: string[] = [];
-  rankList.forEach(r => {
-    const row = byRank.get(r)!;
-    row.sort((a, b) => `${a.iteration}${a.id}`.localeCompare(`${b.iteration}${b.id}`));
-    const serpentine = r % 2 === 1;
-    // 行走顺序：偶数层从左往右，奇数层从右往左折返
-    journey.push(...(serpentine ? [...row].reverse() : row).map(n => n.id));
-    const wobble = Math.sin(r * 1.35) * 96;
-    row.forEach((n, i) => {
-      const order = serpentine ? row.length - 1 - i : i;
-      const jitter = Math.sin(i * 2.3 + r * 0.9) * 12;
-      pos.set(n.id, { x: 110 + order * COL_W + wobble, y: 80 + r * ROW_H + jitter });
+  const trail: WorkflowNode[] = [];
+  let leafCursor = 0;
+  const PIN = 17; // 图钉半径
+  const dfs = (n: WorkflowNode, depth: number) => {
+    trail.push(n);
+    const kids = children.get(n.id) ?? [];
+    if (kids.length === 0) {
+      pos.set(n.id, { x: MM_X0 + depth * MM_LEVEL, y: leafCursor * MM_LEAF_GAP });
+      leafCursor++;
+      return;
+    }
+    const first = leafCursor;
+    for (const k of kids) dfs(k, depth + 1);
+    const y = ((first + leafCursor - 1) / 2) * MM_LEAF_GAP;
+    pos.set(n.id, { x: MM_X0 + depth * MM_LEVEL, y });
+  };
+  roots.forEach(r => dfs(r, 0));
+  // 无依赖也无被依赖的孤立节点：当作根补排
+  for (const n of nodes) if (!pos.has(n.id)) dfs(n, 0);
+
+  // 营地旗标：每个迭代首枚路标上方立一面小旗（层级路牌）
+  const campNodes: Node[] = [];
+  const seenIter = new Set<string>();
+  trail.forEach((n, i) => {
+    if (seenIter.has(n.iteration)) return;
+    seenIter.add(n.iteration);
+    if (i === 0) return;
+    const p = pos.get(n.id);
+    if (!p) return;
+    const title = iterations.find(it => it.id === n.iteration)?.title ?? n.iteration;
+    campNodes.push({
+      id: `camp-${n.iteration}`,
+      type: "camp",
+      position: { x: p.x - 62, y: p.y - PIN - 46 },
+      selectable: false,
+      draggable: false,
+      data: { label: `${n.iteration} · ${title}` },
     });
   });
+
   const rfNodes: Node[] = nodes.map(n => {
-    const p = pos.get(n.id) ?? { x: 0, y: 0 };
+    const p = pos.get(n.id) ?? { x: MM_X0, y: 0 };
     return {
       id: n.id,
       type: "plan",
-      position: { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 },
-      data: { wf: n },
+      // 节点盒以图钉为锚：钉心对准枝点，枝条停在钉缘
+      position: { x: p.x - NODE_W / 2, y: p.y - PIN },
+      data: { wf: n, rank: ranks.get(n.id) ?? 0 },
     };
   });
-  // 点状步道线：贯穿全部路标，铺在依赖线之下
-  const trailEdges: Edge[] = journey.slice(1).map((to, i) => ({
-    id: `trail-${i}`,
-    source: journey[i],
-    target: to,
-    type: "trail",
-    selectable: false,
-    data: { trail: true },
-  }));
-  const rfEdges: Edge[] = edges.map(e => ({
-    id: `${e.from}->${e.to}`,
-    source: e.from,
-    target: e.to,
-    style: { stroke: EDGE_COLOR, strokeWidth: 1.75 },
-    markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: EDGE_COLOR },
-  }));
-  return { nodes: rfNodes, edges: [...trailEdges, ...rfEdges] };
+
+  const reached = (s: string) => s === "done" || s === "in-progress" || s === "blocked" || s === "dropped";
+
+  // 步道 = 主亲枝（DFS 顺序）；走过与否看父节点是否已到达
+  const trailEdges: Edge[] = [];
+  for (const [to, from] of parent) {
+    const fi = trail.findIndex(n => n.id === from);
+    const ti = trail.findIndex(n => n.id === to);
+    if (fi < 0 || ti < 0) continue;
+    const f = nodes.find(n => n.id === from)!;
+    trailEdges.push({
+      id: `trail-${from}-${to}`,
+      source: from,
+      target: to,
+      type: "trail",
+      selectable: false,
+      data: { trail: true, walked: reached(f.displayStatus) },
+    });
+  }
+  trailEdges.sort((a, b) => trail.findIndex(n => n.id === a.source) - trail.findIndex(n => n.id === b.source));
+
+  // 跨枝依赖：淡色虚线，退为背景纹理
+  const primary = new Set([...parent.entries()].map(([to, from]) => `${from}->${to}`));
+  const rfEdges: Edge[] = candidates
+    .filter(e => !primary.has(`${e.from}->${e.to}`))
+    .map(e => ({
+      id: `${e.from}->${e.to}`,
+      source: e.from,
+      target: e.to,
+      style: { stroke: EDGE_COLOR, strokeWidth: 1.4, opacity: 0.55, strokeDasharray: "5 5" },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 11, height: 11, color: EDGE_COLOR },
+    }));
+  return { nodes: [...campNodes, ...rfNodes], edges: [...trailEdges, ...rfEdges] };
 }
 
-/** 步道线：圆点连成的虚线路径，非交互。纸色 halo 垫底，从等高线里脱出来。 */
-function TrailEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const dx = Math.max(Math.abs(targetX - sourceX) * 0.45, 56);
-  const d = `M ${sourceX},${sourceY} C ${sourceX + dx},${sourceY} ${targetX - dx},${targetY} ${targetX},${targetY}`;
+/** 步道线（思维导图枝条）：已行走 = 橙色实线（纸色 halo 衬底），
+ *  未行走 = 淡色圆点虚线。S 形曲线连接父子钉心。 */
+function TrailEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProps) {
+  const walked = (data as { walked?: boolean } | undefined)?.walked;
+  const dx = Math.max(targetX - sourceX, 60);
+  const d = `M ${sourceX},${sourceY} C ${sourceX + dx * 0.55},${sourceY} ${targetX - dx * 0.45},${targetY} ${targetX},${targetY}`;
   return (
     <>
-      <path d={d} className="trail-halo" />
-      <path d={d} className="trail-path" />
+      {walked && <path d={d} className="trail-halo" />}
+      <path d={d} className={walked ? "trail-walked" : "trail-path"} />
     </>
   );
 }
 
 const edgeTypes = { trail: TrailEdge };
-
-/** 等高线地形 backdrop：手绘感曲线层叠，图纸质感（静态纸纹，不随平移缩放）。 */
-function TopoBackdrop() {
-  return (
-    <svg className="topo" aria-hidden="true" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice">
-      <path d="M-60,150 C180,90 360,230 600,170 S980,60 1460,150" />
-      <path d="M-60,230 C200,170 380,310 620,250 S1000,140 1460,230" />
-      <path d="M-60,310 C220,250 400,390 640,330 S1020,220 1460,310" />
-      <path d="M-60,560 C240,500 420,640 660,580 S1040,470 1460,560" />
-      <path d="M-60,645 C260,585 440,725 680,665 S1060,555 1460,645" />
-      <path d="M-60,730 C280,670 460,810 700,750 S1080,640 1460,730" />
-      <path d="M-60,815 C300,755 480,895 720,835 S1100,725 1460,815" />
-    </svg>
-  );
-}
 
 function Legend() {
   const items: [string, string][] = [
@@ -219,15 +318,16 @@ function Legend() {
   );
 }
 
-export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect }: {
+export default function FlowView({ nodes, edges, iterations, selectedId, readyIds, onSelect }: {
   nodes: WorkflowNode[];
   edges: { from: string; to: string }[];
+  iterations: { id: string; title: string }[];
   selectedId: string | null;
   readyIds: Set<string>;
   onSelect: (id: string) => void;
 }) {
   const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
-    const laid = layout(nodes, edges);
+    const laid = layout(nodes, edges, iterations);
     // 依赖高亮：选中节点的出入边加强，其余淡化；步道线恒常显示
     const styled = laid.edges.map(e => {
       if ((e.data as { trail?: boolean } | undefined)?.trail) return e;
@@ -236,7 +336,7 @@ export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect 
         ...e,
         style: {
           stroke: connected ? EDGE_HIT : EDGE_COLOR,
-          strokeWidth: connected ? 2.25 : 1.5,
+          strokeWidth: connected ? 2.25 : 1.75,
           opacity: selectedId === null || connected ? 1 : 0.3,
         },
         markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: connected ? EDGE_HIT : EDGE_COLOR },
@@ -248,25 +348,25 @@ export default function FlowView({ nodes, edges, selectedId, readyIds, onSelect 
       data: { ...n.data, ready: readyIds.has(n.id), onSelect } as Record<string, unknown>,
     }));
     return { nodes: withSelect, edges: styled };
-  }, [nodes, edges, selectedId, readyIds, onSelect]);
+  }, [nodes, edges, iterations, selectedId, readyIds, onSelect]);
 
   return (
     <div className="flow">
-      <TopoBackdrop />
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        minZoom={0.4}
+        fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.2}
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, n) => onSelect(n.id)}
       >
         <Controls showInteractive={false} />
         <Legend />
       </ReactFlow>
+      <Compass />
     </div>
   );
 }
-
