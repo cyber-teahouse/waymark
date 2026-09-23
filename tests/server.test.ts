@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { makeSampleProject } from "./helpers.js";
 import { collectEvidenceWatchTargets, startServer } from "../src/ui/server.js";
+import { WorkflowJsonSchema } from "../src/types.js";
+import { getWorkflowCacheStats, resetWorkflowCache } from "../src/sync/workflowCache.js";
 
 describe("collectEvidenceWatchTargets", () => {
   it("derives existing static dirs from evidence globs", async () => {
@@ -159,6 +161,84 @@ describe("mutation api（POST /api/start、/api/done）", () => {
     // 未知接口给出明确错误而非静默
     const bad = await post(port, "/api/nope", { id: "M3-login" }, { "x-waymark": "ui" });
     expect(bad.status).toBe(400);
+
+    await close(server);
+  });
+});
+
+describe("SSE 热更新与缓存", () => {
+  const STUB = '<html><body><div id="root"></div>stub</body></html>';
+
+  async function listen(root: string) {
+    const server = startServer(root, 0, STUB);
+    await new Promise<void>(resolve => server.on("listening", resolve));
+    const addr = server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+    return { server, port };
+  }
+
+  async function close(server: import("node:http").Server) {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+  }
+
+  it("节点变更后 SSE 推送 workflow JSON（前端局部刷新用），并保留 reload 兼容帧", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-sse-"));
+    await makeSampleProject(root);
+    const { server, port } = await listen(root);
+
+    // 挂一个 SSE 客户端，后台持续收帧
+    const sse = await fetch(`http://127.0.0.1:${port}/events`);
+    const reader = sse.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    const pump = (async () => {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+      }
+    })();
+
+    const r = await fetch(`http://127.0.0.1:${port}/api/done`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-waymark": "ui" },
+      body: JSON.stringify({ id: "M2-auth" }),
+    });
+    expect(r.status).toBe(200);
+
+    const deadline = Date.now() + 5000;
+    while (!buf.includes("event: workflow") && Date.now() < deadline) {
+      await new Promise(res => setTimeout(res, 20));
+    }
+
+    // 旧版页面（onmessage 整页刷新）继续可用
+    expect(buf).toContain("data: reload");
+    // 新版页面消费 workflow 帧：单行 JSON、过契约、携带最新状态
+    const m = /event: workflow\ndata: (.+)\r?\n/.exec(buf);
+    expect(m).toBeTruthy();
+    const wf = JSON.parse(m![1]);
+    expect(WorkflowJsonSchema.safeParse(wf).success).toBe(true);
+    expect(wf.nodes.find((n: { id: string }) => n.id === "M2-auth").declaredStatus).toBe("done");
+
+    await reader.cancel();
+    await pump.catch(() => { /* 取消读取时泵循环结束 */ });
+    await close(server);
+  });
+
+  it("重复渲染命中指纹缓存（输入未变不重复扫描证据/git）", async () => {
+    resetWorkflowCache();
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-cache-"));
+    await makeSampleProject(root);
+    const { server, port } = await listen(root);
+
+    const before = getWorkflowCacheStats().rebuilds;
+    const page1 = await fetch(`http://127.0.0.1:${port}/`);
+    expect(page1.status).toBe(200);
+    const page2 = await fetch(`http://127.0.0.1:${port}/`);
+    expect(page2.status).toBe(200);
+    // 两次渲染只重建一次：第二次指纹未变，命中缓存
+    expect(getWorkflowCacheStats().rebuilds).toBe(before + 1);
 
     await close(server);
   });

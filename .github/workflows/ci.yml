@@ -22,10 +22,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run build:web
-      - name: dist 新鲜度校验（防 src/dist 漂移）
+      - name: dist 新鲜度校验（防 src/dist 漂移；含未跟踪的新产物文件）
         run: |
-          git diff --exit-code dist || {
-            echo '::error::dist 与 src 不同步：改了源码但没提交重建产物。请运行 npm run build && npm run build:web 后一并提交。'
+          if [ -n "$(git status --porcelain dist)" ]; then
+            git status --porcelain dist
+            echo '::error::dist 与 src 不同步：改了源码但没提交重建产物。请运行 npm run build && npm run build:web 后一并提交（含新增文件）。'
             exit 1
-          }
+          fi
       - run: npm test

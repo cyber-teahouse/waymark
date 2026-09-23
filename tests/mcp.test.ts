@@ -7,7 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { makeSampleProject } from "./helpers.js";
 import { createMcpServer } from "../src/mcp/server.js";
-import { getWorkflowCacheStats, resetWorkflowCache } from "../src/mcp/workflowCache.js";
+import { getWorkflowCacheStats, resetWorkflowCache } from "../src/sync/workflowCache.js";
 
 const TOOL_NAMES = [
   "waymark_summary",

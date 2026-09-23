@@ -7,8 +7,6 @@ declare global {
   interface Window { __WAYMARK_DATA__?: WorkflowJson }
 }
 
-const wf = window.__WAYMARK_DATA__;
-
 /** 进度环：轨道 var(--line)，进度弧 var(--accent)，加载时 400ms 画出（respect prefers-reduced-motion）。 */
 function ProgressRing({ percent }: { percent: number }) {
   const [drawn, setDrawn] = useState(false);
@@ -103,6 +101,8 @@ function countLayers(nodes: WorkflowNode[], edges: { from: string; to: string }[
 interface ChipDef { key: string; label: string; st: string; count: number }
 
 export default function App() {
+  // 工作流数据状态化：ui 模式下由 SSE workflow 帧原位更新（不整页刷新，保留画布视口）
+  const [wf, setWf] = useState<WorkflowJson | undefined>(() => window.__WAYMARK_DATA__);
   const initial = useMemo(parseHash, []);
   const [tab, setTab] = useState<string>(initial.tab ?? "__all__");
   const [selected, setSelected] = useState<string | null>(initial.node);
@@ -132,6 +132,23 @@ export default function App() {
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // 热更新：监听 ui 服务的 workflow 帧，原位替换数据；帧异常时回退整页刷新。
+  // file:// 静态打开时无服务可连，直接跳过。
+  useEffect(() => {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    const es = new EventSource("/events");
+    es.addEventListener("workflow", (ev) => {
+      try {
+        const data = JSON.parse((ev as MessageEvent).data) as WorkflowJson;
+        window.__WAYMARK_DATA__ = data;
+        setWf(data);
+      } catch {
+        window.location.reload();
+      }
+    });
+    return () => es.close();
   }, []);
 
   if (!wf) {

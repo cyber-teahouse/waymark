@@ -2,8 +2,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { watch } from "chokidar";
-import { buildWorkflow } from "../sync/build.js";
 import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
+import { getWorkflowCached } from "../sync/workflowCache.js";
 import { startNode, markDone, blockNode, dropNode, reopenNode } from "../plan/commands.js";
 export { collectEvidenceWatchTargets } from "../render/render.js";
 const MAX_BODY_BYTES = 1_000_000;
@@ -25,17 +25,26 @@ function readBody(req) {
     });
 }
 export function startServer(root, port, bundle) {
-    let cache = null;
     let watcher;
     const clients = new Set();
     const bundleHtml = bundle ?? loadBundle();
+    /** 渲染当前页面。工作流数据走 mtime 指纹缓存（与 MCP 同一缓存）：
+     *  输入未变时只做字符串注入，不重复扫描证据/git。 */
     async function renderPage() {
-        const { workflow } = await buildWorkflow(root);
+        const { workflow } = await getWorkflowCached(root);
         return renderWorkflowHtml(workflow, bundleHtml);
     }
-    function pushReload() {
-        for (const c of clients)
+    /** 向所有 SSE 客户端推送最新工作流：workflow 帧（新版页面局部刷新）
+     *  + reload 帧（旧版页面整页刷新兜底）。输入指纹未变（fromCache）说明是
+     *  无关紧要的 watch 事件，跳过推送避免前端无意义重渲染。 */
+    async function pushUpdate() {
+        const { workflow, fromCache } = await getWorkflowCached(root);
+        if (fromCache)
+            return;
+        for (const c of clients) {
             c.write("data: reload\n\n");
+            c.write(`event: workflow\ndata: ${JSON.stringify(workflow)}\n\n`);
+        }
     }
     const server = http.createServer(async (req, res) => {
         if (req.url === "/events") {
@@ -95,8 +104,7 @@ export function startServer(root, port, bundle) {
                     }
                 })();
                 try {
-                    cache = await renderPage();
-                    pushReload();
+                    await pushUpdate();
                 }
                 catch {
                     // 数据半写状态渲染失败不影响操作结果，等下次变更再刷新
@@ -109,10 +117,8 @@ export function startServer(root, port, bundle) {
             return;
         }
         try {
-            if (cache === null)
-                cache = await renderPage();
             res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-            res.end(cache);
+            res.end(await renderPage());
         }
         catch (e) {
             res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
@@ -145,8 +151,7 @@ export function startServer(root, port, bundle) {
             clearTimeout(timer);
             timer = setTimeout(async () => {
                 try {
-                    cache = await renderPage();
-                    pushReload();
+                    await pushUpdate();
                 }
                 catch {
                     // 文档半写状态渲染失败：保留旧页面，等下一次变更

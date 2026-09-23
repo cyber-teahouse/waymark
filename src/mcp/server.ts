@@ -4,7 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "../plan/commands.js";
 import { collectPlanIssues } from "../plan/check.js";
 import { getVersion } from "../version.js";
-import { getWorkflowCached } from "./workflowCache.js";
+import { getWorkflowCached } from "../sync/workflowCache.js";
 
 const SERVER_NAME = "waymark";
 

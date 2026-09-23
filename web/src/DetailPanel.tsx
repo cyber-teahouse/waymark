@@ -87,7 +87,7 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
     };
   }, [onClose]);
 
-  /** 调本地 ui 服务的写接口（与 CLI/MCP 同一引擎）；成功后由 SSE 推流刷新，定时器兜底。 */
+  /** 调本地 ui 服务的写接口（与 CLI/MCP 同一引擎）；新数据由 SSE workflow 帧原位推送，无需整页刷新。 */
   async function act(kind: "start" | "done" | "block" | "drop" | "reopen") {
     if (busy) return;
     setBusy(kind);
@@ -112,7 +112,9 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         block: "标记受阻", drop: "放弃", reopen: "重新打开",
       }[kind];
       setActionMsg({ ok: true, text: warns.length ? `已${verb}。注意：${warns.join("；")}` : `已${verb}` });
-      setTimeout(() => window.location.reload(), 1500);
+      setBusy(null);
+      setNote("");
+      setAccAll(false);
     } catch {
       setActionMsg({ ok: false, text: "网络错误——此页面可能不是 waymark ui 服务提供的，操作未生效" });
       setBusy(null);
