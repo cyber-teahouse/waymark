@@ -13,7 +13,7 @@
   --ink-2: #5C4A3D;      /* 次级文字（油墨棕） */
   --ink-3: #77694F;      /* 辅助文字（暖灰棕，≥4.5:1） */
   --line: #E3DAC4;       /* 图纸 hairline */
-  --topo-line: #E8DFC6;  /* 等高线 */
+  --topo-line: #EDE6D1;  /* 等高线（压淡，别抢连线） */
   /* 状态语义：步道火焰色为「进行中」——正是山路上的 current blaze */
   --done: #2E6B4E;    --done-bg: #E4EDE2;   /* 森林绿：已完成 */
   --wip: #B04A24;     --wip-bg: #F5E3D4;    /* 火焰橙：进行中 */
@@ -187,7 +187,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   width: 100%; height: 100%;
   pointer-events: none;
 }
-.topo path { fill: none; stroke: var(--topo-line); stroke-width: 1.3; }
+.topo path { fill: none; stroke: var(--topo-line); stroke-width: 1.1; opacity: 0.75; }
 
 .flow-empty {
   position: absolute; inset: 0; z-index: 5;
@@ -538,3 +538,27 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .act-note:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--wip-bg); }
 .act-note::placeholder { color: var(--ink-3); }
+
+/* ── 步道线：圆点虚线，贯穿路标 ─────────────────────── */
+.trail-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 9;
+  opacity: 0.85;
+}
+/* 纸色衬底：把步道线从等高线里托出来 */
+.trail-halo {
+  fill: none;
+  stroke: var(--paper);
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+.legend-trail {
+  display: inline-block;
+  width: 22px;
+  border-top: 2.4px dotted var(--accent);
+  opacity: 0.7;
+}
