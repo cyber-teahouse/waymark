@@ -124,40 +124,80 @@ export function parseIterationFile(root: string, relFile: string): { doc?: Itera
   return { doc: { file: toPosix(relFile), fm: fm.data } };
 }
 
-/** 解析 overview.md 的总览表；缺文件返回 issue。 */
-export function parseOverview(root: string): { doc?: OverviewDoc; issue?: PlanIssue } {
+/** 解析 overview.md 的总览表；缺文件/缺表格返回 error issue。
+ *  只读取文件中的第一张 markdown 表格（连续的 | 行块）；其余表格、
+ *  畸形行、空表不再静默吞掉，而是产生 warning 让用户感知格式问题。 */
+export function parseOverview(root: string): { doc?: OverviewDoc; issues: PlanIssue[] } {
   const relFile = "plan/overview.md";
   const abs = path.join(root, relFile);
+  const issues: PlanIssue[] = [];
+  const warn = (message: string) => issues.push({ level: "warning", file: relFile, message });
   if (!fs.existsSync(abs)) {
-    return {
-      issue: {
-        level: "error",
-        file: relFile,
-        message: "缺少 plan/overview.md（总览表用于与 milestones/ 交叉校验）",
-      },
-    };
+    issues.push({
+      level: "error",
+      file: relFile,
+      message: "缺少 plan/overview.md（总览表用于与 milestones/ 交叉校验）",
+    });
+    return { issues };
   }
-  const lines = fs
-    .readFileSync(abs, "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l.trim().startsWith("|"));
-  const rows = lines
-    .map((l) =>
-      l
-        .trim()
-        .replace(/^\|/, "")
-        .replace(/\|$/, "")
-        .split("|")
-        .map((c) => c.trim()),
-    )
-    .filter((cells) => !cells.every((c) => /^[-: ]*$/.test(c))) // 去分隔行
-    .filter((cells) => cells.length >= 2 && cells[0] !== "" && !/^id$/i.test(cells[0])); // 去表头
-  const table: OverviewTableEntry[] = rows.map((cells) => ({
-    id: cells[0],
-    title: cells[1],
-    iteration: cells[2] ?? "",
+  let lines: string[];
+  try {
+    lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
+  } catch (e) {
+    issues.push({ level: "error", file: relFile, message: `读取失败: ${(e as Error).message}` });
+    return { issues };
+  }
+  // 定位第一张表：第一个 | 行开始的连续行块
+  const firstTable = lines.findIndex((l) => l.trim().startsWith("|"));
+  if (firstTable === -1) {
+    issues.push({
+      level: "error",
+      file: relFile,
+      message: "overview.md 中未找到总览表（需要 | id | 标题 | 迭代 | 形式的表格）",
+    });
+    return { issues };
+  }
+  let tableEnd = firstTable;
+  while (tableEnd < lines.length && lines[tableEnd].trim().startsWith("|")) tableEnd++;
+  const extraOffset = lines.slice(tableEnd).findIndex((l) => l.trim().startsWith("|"));
+  if (extraOffset !== -1) {
+    warn(`第 ${tableEnd + extraOffset + 1} 行起还有其它表格，总览只读取第一张表，已忽略`);
+  }
+  const rows = lines.slice(firstTable, tableEnd).map((l, i) => ({
+    lineNo: firstTable + i + 1,
+    cells: l
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((c) => c.trim()),
   }));
-  return { doc: { file: relFile, table } };
+  const dataRows = rows.filter(({ cells }) => !cells.every((c) => /^[-: ]*$/.test(c))); // 去分隔行
+  const header = dataRows[0];
+  if (!header) {
+    warn("总览表只有分隔行，缺少表头与数据行");
+    return { doc: { file: relFile, table: [] }, issues };
+  }
+  if (!/^id$/i.test(header.cells[0])) {
+    warn(
+      `第 ${header.lineNo} 行首列是「${header.cells[0]}」而非 id——若这是表头请改为 | id | 标题 | 迭代 |，否则该行会被当作里程碑数据`,
+    );
+  }
+  const table: OverviewTableEntry[] = [];
+  for (const { cells, lineNo } of dataRows) {
+    if (/^id$/i.test(cells[0])) continue; // 表头
+    if (cells.length < 2 || cells[0] === "") {
+      warn(
+        `第 ${lineNo} 行格式不完整（至少需要 | id | 标题 | 两列），已跳过：${cells.join(" | ") || "(空)"}`,
+      );
+      continue;
+    }
+    table.push({ id: cells[0], title: cells[1], iteration: cells[2] ?? "" });
+  }
+  if (table.length === 0) {
+    warn("总览表没有数据行——里程碑应逐行列入，供与 milestones/ 交叉校验");
+  }
+  return { doc: { file: relFile, table }, issues };
 }
 
 export interface LoadedPlan {
@@ -183,6 +223,6 @@ export function loadPlan(root: string): LoadedPlan {
   }
   const ov = parseOverview(root);
   const overview = ov.doc;
-  if (ov.issue) issues.push(ov.issue);
+  issues.push(...ov.issues);
   return { nodes, iterations, overview, issues };
 }
