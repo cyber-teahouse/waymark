@@ -72,5 +72,6 @@ git ls-remote --tags origin | tail -3   # 确认 tag 已上远端
 
 | 版本 | 日期 | 要点 |
 |------|------|------|
+| 0.2.2 | 2026-09-23 | 步道图视觉系统（任务控制台 + hub 总览统一）、block/drop/reopen 状态机、UI 写操作（认领开工/标记完成）、CI 矩阵与 dist 新鲜度校验 |
 | 0.2.1 | 2026-09-22 | 证据目录过期检测、版本号单一来源（getVersion）、MCP 工作流缓存（workflowCache） |
 | 0.2.0 | — | MCP server（5 工具）、内容感知校验、可开工提示、CI 示例 |
