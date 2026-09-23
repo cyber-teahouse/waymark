@@ -1,10 +1,17 @@
-import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { describe, expect, it } from "vitest";
+import {
+  dirNewestMtime,
+  planNewerThan,
+  renderWorkflowHtml,
+  workflowInputMtime,
+  writeIndexHtml,
+  writeWorkflow,
+} from "../src/render/render.js";
 import { buildWorkflow } from "../src/sync/build.js";
-import { renderWorkflowHtml, writeWorkflow, writeIndexHtml, planNewerThan, workflowInputMtime, dirNewestMtime } from "../src/render/render.js";
+import { makeSampleProject } from "./helpers.js";
 
 describe("renderWorkflowHtml", () => {
   it("renders workflow into standalone html using stub bundle", async () => {
@@ -56,8 +63,7 @@ describe("planNewerThan（含证据目录）", () => {
   it("workflowInputMtime 不晚于证据目录 mtime；dirNewestMtime 对缺失目录返回 0", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-render5-"));
     await makeSampleProject(root);
-    expect(workflowInputMtime(root))
-      .toBeGreaterThanOrEqual(dirNewestMtime(path.join(root, "src", "core")));
+    expect(workflowInputMtime(root)).toBeGreaterThanOrEqual(dirNewestMtime(path.join(root, "src", "core")));
     expect(dirNewestMtime(path.join(root, "no-such-dir"))).toBe(0);
   });
 

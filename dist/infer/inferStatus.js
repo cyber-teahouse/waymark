@@ -1,8 +1,8 @@
-import { scorePaths, scoreTests } from "./scorePaths.js";
-import { scoreGrep } from "./scoreGrep.js";
 import { scoreGit } from "./scoreGit.js";
+import { scoreGrep } from "./scoreGrep.js";
+import { scorePaths, scoreTests } from "./scorePaths.js";
 export function parseAcceptance(items) {
-    return items.map(s => {
+    return items.map((s) => {
         const m = /^\[([ xX])\]\s*(.+)$/.exec(s.trim());
         return m ? { done: m[1] !== " ", text: m[2] } : { done: false, text: s.trim() };
     });
@@ -38,9 +38,10 @@ export async function inferEvidence(root, fm, gitSnapshot, grepFileCache) {
     }
     const score = declared.length === 0
         ? 0
-        : declared.reduce((sum, kind) => sum + (report.find(c => c.kind === kind)?.score ?? 0), 0) / declared.length;
+        : declared.reduce((sum, kind) => sum + (report.find((c) => c.kind === kind)?.score ?? 0), 0) /
+            declared.length;
     const acceptance = parseAcceptance(fm.acceptance);
-    const allDone = acceptance.length > 0 && acceptance.every(a => a.done);
+    const allDone = acceptance.length > 0 && acceptance.every((a) => a.done);
     let inferred;
     if (score <= 0)
         inferred = "planned";

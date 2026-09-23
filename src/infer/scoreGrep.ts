@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import fg from "fast-glob";
-import { DEFAULT_IGNORES, IGNORE_DIR_NAMES, type EvidenceCheck } from "../types.js";
+import { DEFAULT_IGNORES, type EvidenceCheck, IGNORE_DIR_NAMES } from "../types.js";
 
 const MAX_FILES = 20000;
 const MAX_FILE_BYTES = 1_000_000;
@@ -36,8 +36,15 @@ function collectCandidates(root: string, scopeGlobs: string[]): string[] {
     walkFiles(root, files);
     return files;
   }
-  return fg.sync(scopeGlobs, { cwd: root, onlyFiles: true, dot: false, ignore: DEFAULT_IGNORES, suppressErrors: true })
-    .map(f => path.join(root, f));
+  return fg
+    .sync(scopeGlobs, {
+      cwd: root,
+      onlyFiles: true,
+      dot: false,
+      ignore: DEFAULT_IGNORES,
+      suppressErrors: true,
+    })
+    .map((f) => path.join(root, f));
 }
 
 function cacheKey(scopeGlobs: string[]): string {
@@ -55,10 +62,16 @@ export function scoreGrep(
   }
   let regexes: RegExp[];
   try {
-    regexes = patterns.map(p => new RegExp(p));
+    regexes = patterns.map((p) => new RegExp(p));
   } catch (e) {
     return {
-      check: { kind: "grep", ok: false, score: 0, detail: `正则无效: ${(e as Error).message}`, skipped: true },
+      check: {
+        kind: "grep",
+        ok: false,
+        score: 0,
+        detail: `正则无效: ${(e as Error).message}`,
+        skipped: true,
+      },
       sampleHits: [],
     };
   }
@@ -76,7 +89,10 @@ export function scoreGrep(
     } catch {
       continue;
     }
-    if (stat.size > MAX_FILE_BYTES) { truncated = true; continue; }
+    if (stat.size > MAX_FILE_BYTES) {
+      truncated = true;
+      continue;
+    }
     let buf: Buffer;
     try {
       buf = fs.readFileSync(file);
@@ -86,7 +102,7 @@ export function scoreGrep(
     if (isBinary(buf)) continue;
     const lines = buf.toString("utf8").split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
-      if (regexes.some(re => re.test(lines[i]))) {
+      if (regexes.some((re) => re.test(lines[i]))) {
         anyHit = true;
         if (sampleHits.length < 3) {
           sampleHits.push(`${path.relative(root, file).split(path.sep).join("/")}:${i + 1}`);

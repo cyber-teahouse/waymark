@@ -1,6 +1,4 @@
-import type {
-  PlanDoc, IterationDoc, OverviewDoc, PlanIssue,
-} from "../types.js";
+import type { IterationDoc, OverviewDoc, PlanDoc, PlanIssue } from "../types.js";
 import type { Graph } from "./buildGraph.js";
 
 export interface ValidateInput {
@@ -30,20 +28,21 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
   }
   if (graph.cyclePath) {
     issues.push({
-      level: "error", file: graph.cyclePath[0],
+      level: "error",
+      file: graph.cyclePath[0],
       message: `循环依赖: ${graph.cyclePath.join(" -> ")}`,
     });
   }
-  const iterIds = new Set(iterations.map(i => i.fm.id));
+  const iterIds = new Set(iterations.map((i) => i.fm.id));
   for (const n of nodes) {
     if (n.fm.iteration && !iterIds.has(n.fm.iteration)) {
       issues.push({ level: "error", file: n.file, message: `迭代引用无效: ${n.fm.iteration}` });
     }
   }
   if (overview) {
-    const milestoneIds = new Set(nodes.filter(n => n.fm.type === "milestone").map(n => n.fm.id));
-    const allIds = new Set(nodes.map(n => n.fm.id));
-    const nodeById = new Map(nodes.map(n => [n.fm.id, n]));
+    const milestoneIds = new Set(nodes.filter((n) => n.fm.type === "milestone").map((n) => n.fm.id));
+    const allIds = new Set(nodes.map((n) => n.fm.id));
+    const nodeById = new Map(nodes.map((n) => [n.fm.id, n]));
     const tableIds = new Set<string>();
     for (const row of overview.table) {
       tableIds.add(row.id);
@@ -54,7 +53,8 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
       const node = nodeById.get(row.id)!;
       if (row.title && row.title !== node.fm.title) {
         issues.push({
-          level: "warning", file: overview.file,
+          level: "warning",
+          file: overview.file,
           message: `总览表标题与节点不一致: ${row.id}「${row.title}」≠「${node.fm.title}」——建议同步`,
         });
       }
@@ -69,21 +69,40 @@ export function validatePlan(input: ValidateInput): PlanIssue[] {
   // 内容性约定（warning 级，不影响退出码）：
   for (const n of nodes) {
     if (n.fm.status === "done" && n.completionLog.length === 0) {
-      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 已完成但没有完成记录——建议在「完成记录」补充交付说明` });
+      issues.push({
+        level: "warning",
+        file: n.file,
+        message: `${n.fm.id} 已完成但没有完成记录——建议在「完成记录」补充交付说明`,
+      });
     }
-    if (n.fm.status === "in-progress" && n.fm.acceptance.length > 0
-      && !n.fm.acceptance.some(a => /^\s*\[\s*[xX]\s*\]/.test(a))) {
-      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 进行中但验收标准无一勾选——随进展及时勾选` });
+    if (
+      n.fm.status === "in-progress" &&
+      n.fm.acceptance.length > 0 &&
+      !n.fm.acceptance.some((a) => /^\s*\[\s*[xX]\s*\]/.test(a))
+    ) {
+      issues.push({
+        level: "warning",
+        file: n.file,
+        message: `${n.fm.id} 进行中但验收标准无一勾选——随进展及时勾选`,
+      });
     }
     if (n.fm.status === "done" && n.fm.acceptance.length > 0) {
-      const unchecked = n.fm.acceptance.filter(a => !/^\s*\[\s*[xX]\s*\]/.test(a)).length;
+      const unchecked = n.fm.acceptance.filter((a) => !/^\s*\[\s*[xX]\s*\]/.test(a)).length;
       if (unchecked > 0) {
-        issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 已完成但有 ${unchecked} 项验收标准未勾选——确认后用 --acc 补勾或复核` });
+        issues.push({
+          level: "warning",
+          file: n.file,
+          message: `${n.fm.id} 已完成但有 ${unchecked} 项验收标准未勾选——确认后用 --acc 补勾或复核`,
+        });
       }
     }
     const ev = n.fm.evidence;
-    if (ev && Object.values(ev).every(arr => !arr || arr.length === 0)) {
-      issues.push({ level: "warning", file: n.file, message: `${n.fm.id} 声明了 evidence 但所有维度为空——不会产生任何推断` });
+    if (ev && Object.values(ev).every((arr) => !arr || arr.length === 0)) {
+      issues.push({
+        level: "warning",
+        file: n.file,
+        message: `${n.fm.id} 声明了 evidence 但所有维度为空——不会产生任何推断`,
+      });
     }
   }
   return issues;
@@ -95,12 +114,19 @@ export function validatePatterns(nodes: PlanDoc[]): PlanIssue[] {
   for (const n of nodes) {
     const ev = n.fm.evidence;
     if (!ev) continue;
-    for (const [kind, patterns] of [["grep", ev.grep], ["git", ev.git]] as const) {
+    for (const [kind, patterns] of [
+      ["grep", ev.grep],
+      ["git", ev.git],
+    ] as const) {
       for (const p of patterns ?? []) {
         try {
           new RegExp(p);
         } catch (e) {
-          issues.push({ level: "error", file: n.file, message: `evidence.${kind} 正则无效: ${p}（${(e as Error).message}）` });
+          issues.push({
+            level: "error",
+            file: n.file,
+            message: `evidence.${kind} 正则无效: ${p}（${(e as Error).message}）`,
+          });
         }
       }
     }

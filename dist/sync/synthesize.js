@@ -1,8 +1,8 @@
-import path from "node:path";
 import fs from "node:fs";
-import { WorkflowJsonSchema, } from "../types.js";
+import path from "node:path";
 import { inferEvidence, parseAcceptance } from "../infer/inferStatus.js";
 import { loadGitSnapshot } from "../infer/scoreGit.js";
+import { WorkflowJsonSchema, } from "../types.js";
 export function computeDisplay(declared, inferred, hasEvidence) {
     if (!hasEvidence || inferred === null)
         return { displayStatus: declared, warning: null };
@@ -19,10 +19,11 @@ export function computeDisplay(declared, inferred, hasEvidence) {
 }
 export async function synthesize(input) {
     const orderIndex = new Map(input.graph.topoOrder.map((id, i) => [id, i]));
-    const sorted = [...input.nodes].sort((a, b) => (orderIndex.get(a.fm.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.fm.id) ?? Number.MAX_SAFE_INTEGER));
+    const sorted = [...input.nodes].sort((a, b) => (orderIndex.get(a.fm.id) ?? Number.MAX_SAFE_INTEGER) -
+        (orderIndex.get(b.fm.id) ?? Number.MAX_SAFE_INTEGER));
     const wfNodes = [];
     // 有任一节点声明 git 证据时，整次构建只读一次 git log
-    const gitSnapshot = input.nodes.some(n => n.fm.evidence?.git?.length)
+    const gitSnapshot = input.nodes.some((n) => n.fm.evidence?.git?.length)
         ? await loadGitSnapshot(input.root)
         : undefined;
     // grep 候选文件遍历同样按构建共享（全仓遍历是最贵的一步）
@@ -53,12 +54,12 @@ export async function synthesize(input) {
     }
     const stats = {
         total: wfNodes.length,
-        done: wfNodes.filter(n => n.displayStatus === "done").length,
-        inProgress: wfNodes.filter(n => n.displayStatus === "in-progress").length,
-        planned: wfNodes.filter(n => n.displayStatus === "planned").length,
-        blocked: wfNodes.filter(n => n.displayStatus === "blocked").length,
-        dropped: wfNodes.filter(n => n.displayStatus === "dropped").length,
-        warnings: wfNodes.filter(n => n.warning !== null).length,
+        done: wfNodes.filter((n) => n.displayStatus === "done").length,
+        inProgress: wfNodes.filter((n) => n.displayStatus === "in-progress").length,
+        planned: wfNodes.filter((n) => n.displayStatus === "planned").length,
+        blocked: wfNodes.filter((n) => n.displayStatus === "blocked").length,
+        dropped: wfNodes.filter((n) => n.displayStatus === "dropped").length,
+        warnings: wfNodes.filter((n) => n.warning !== null).length,
     };
     const workflow = {
         version: 1,
@@ -66,12 +67,12 @@ export async function synthesize(input) {
         project: input.projectName,
         nodes: wfNodes,
         edges: input.graph.edges,
-        iterations: input.iterations.map(it => ({
+        iterations: input.iterations.map((it) => ({
             id: it.fm.id,
             title: it.fm.title,
             goal: it.fm.goal,
             window: it.fm.window,
-            nodeIds: wfNodes.filter(n => n.iteration === it.fm.id).map(n => n.id),
+            nodeIds: wfNodes.filter((n) => n.iteration === it.fm.id).map((n) => n.id),
         })),
         issues: input.issues,
         stats,

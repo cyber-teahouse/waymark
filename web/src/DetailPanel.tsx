@@ -1,9 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WorkflowNode } from "../../src/types";
 import { STATUS_LABEL } from "./FlowView";
 
 const KIND_LABEL: Record<string, string> = {
-  paths: "文件路径", grep: "代码特征", tests: "测试", git: "提交记录",
+  paths: "文件路径",
+  grep: "代码特征",
+  tests: "测试",
+  git: "提交记录",
 };
 
 const WARNING_TEXT: Record<string, string> = {
@@ -37,7 +41,11 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 
 /** 依赖关系 chips：点击跳转到该节点 */
-function DepChips({ nodes, emptyText, onSelect }: {
+function DepChips({
+  nodes,
+  emptyText,
+  onSelect,
+}: {
   nodes: WorkflowNode[];
   emptyText: string;
   onSelect: (id: string) => void;
@@ -47,8 +55,8 @@ function DepChips({ nodes, emptyText, onSelect }: {
   }
   return (
     <div className="dep-chips">
-      {nodes.map(n => (
-        <button key={n.id} className="dep-chip" title={n.title} onClick={() => onSelect(n.id)}>
+      {nodes.map((n) => (
+        <button type="button" key={n.id} className="dep-chip" title={n.title} onClick={() => onSelect(n.id)}>
           <span className="dep-dot" aria-hidden="true" />
           <span className="dep-name">{n.title}</span>
           <code className="dep-id">{n.id}</code>
@@ -58,7 +66,13 @@ function DepChips({ nodes, emptyText, onSelect }: {
   );
 }
 
-export default function DetailPanel({ node, related, isReady, onSelect, onClose }: {
+export default function DetailPanel({
+  node,
+  related,
+  isReady,
+  onSelect,
+  onClose,
+}: {
   node: WorkflowNode;
   related: Related | null;
   isReady: boolean;
@@ -102,7 +116,11 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
           ...(note.trim() ? { note: note.trim() } : {}),
         }),
       });
-      const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
+      const data = (await resp.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+        warnings?: string[];
+      } | null;
       if (!resp.ok || !data?.ok) {
         setActionMsg({ ok: false, text: data?.error ?? `请求失败（${resp.status}）` });
         setBusy(null);
@@ -110,8 +128,11 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       }
       const warns = data.warnings ?? [];
       const verb = {
-        start: "开工", done: "标记完成",
-        block: "标记受阻", drop: "放弃", reopen: "重新打开",
+        start: "开工",
+        done: "标记完成",
+        block: "标记受阻",
+        drop: "放弃",
+        reopen: "重新打开",
       }[kind];
       setActionMsg({ ok: true, text: warns.length ? `已${verb}。注意：${warns.join("；")}` : `已${verb}` });
       setBusy(null);
@@ -134,7 +155,11 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         headers: { "content-type": "application/json", "x-waymark": "ui" },
         body: JSON.stringify({ id: node.id, indices: [index] }),
       });
-      const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
+      const data = (await resp.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+        warnings?: string[];
+      } | null;
       if (!resp.ok || !data?.ok) {
         setActionMsg({ ok: false, text: data?.error ?? `请求失败（${resp.status}）` });
       } else if (data.warnings?.length) {
@@ -162,10 +187,14 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       aria-labelledby="detail-title"
       tabIndex={-1}
     >
-      <button className="close" onClick={onClose} aria-label="关闭详情">✕</button>
+      <button type="button" className="close" onClick={onClose} aria-label="关闭详情">
+        ✕
+      </button>
 
       <div className="detail-eyebrow">{node.type === "milestone" ? "MILESTONE" : "TASK"}</div>
-      <h2 className="detail-title" id="detail-title">{node.title}</h2>
+      <h2 className="detail-title" id="detail-title">
+        {node.title}
+      </h2>
       <span className="detail-id">{node.id}</span>
 
       <div className="detail-status">
@@ -176,7 +205,9 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
         {node.inferredStatus && (
           <span className="inferred">
             推断 {STATUS_LABEL[node.inferredStatus]} · 置信 {conf}%
-            <span className="conf-track"><span className="conf-fill" style={{ width: `${conf}%` }} /></span>
+            <span className="conf-track">
+              <span className="conf-fill" style={{ width: `${conf}%` }} />
+            </span>
           </span>
         )}
       </div>
@@ -184,45 +215,58 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       {CAN_MUTATE && (
         <div className="act-row">
           {node.declaredStatus === "planned" && (
-            <button className="act-btn primary" disabled={busy !== null} onClick={() => act("start")}>
+            <button
+              type="button"
+              className="act-btn primary"
+              disabled={busy !== null}
+              onClick={() => act("start")}
+            >
               {busy === "start" ? "提交中…" : "认领开工"}
             </button>
           )}
-          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
-            || node.declaredStatus === "blocked") && (
-            <button className="act-btn" disabled={busy !== null} onClick={() => act("done")}>
+          {(node.declaredStatus === "planned" ||
+            node.declaredStatus === "in-progress" ||
+            node.declaredStatus === "blocked") && (
+            <button type="button" className="act-btn" disabled={busy !== null} onClick={() => act("done")}>
               {busy === "done" ? "提交中…" : "标记完成"}
             </button>
           )}
-          {(node.declaredStatus === "done" || node.declaredStatus === "blocked"
-            || node.declaredStatus === "dropped") && (
-            <button className="act-btn" disabled={busy !== null} onClick={() => act("reopen")}>
+          {(node.declaredStatus === "done" ||
+            node.declaredStatus === "blocked" ||
+            node.declaredStatus === "dropped") && (
+            <button type="button" className="act-btn" disabled={busy !== null} onClick={() => act("reopen")}>
               {busy === "reopen" ? "提交中…" : "重新打开"}
             </button>
           )}
           {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress") && (
             <button
+              type="button"
               className="act-btn subtle"
               title="标记为受阻（旁路状态，解除后可重新打开）"
-              disabled={busy !== null} onClick={() => act("block")}
+              disabled={busy !== null}
+              onClick={() => act("block")}
             >
               {busy === "block" ? "提交中…" : "受阻"}
             </button>
           )}
-          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
-            || node.declaredStatus === "blocked") && (
+          {(node.declaredStatus === "planned" ||
+            node.declaredStatus === "in-progress" ||
+            node.declaredStatus === "blocked") && (
             <button
+              type="button"
               className="act-btn subtle danger"
               title="放弃该节点（dropped 旁路状态，不再计入待办）"
-              disabled={busy !== null} onClick={() => act("drop")}
+              disabled={busy !== null}
+              onClick={() => act("drop")}
             >
               {busy === "drop" ? "提交中…" : "放弃"}
             </button>
           )}
-          {(node.declaredStatus === "planned" || node.declaredStatus === "in-progress"
-            || node.declaredStatus === "blocked") && (
+          {(node.declaredStatus === "planned" ||
+            node.declaredStatus === "in-progress" ||
+            node.declaredStatus === "blocked") && (
             <label className="act-acc">
-              <input type="checkbox" checked={accAll} onChange={e => setAccAll(e.target.checked)} />
+              <input type="checkbox" checked={accAll} onChange={(e) => setAccAll(e.target.checked)} />
               同时勾选全部验收
             </label>
           )}
@@ -233,21 +277,25 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
             aria-label="操作说明"
             maxLength={200}
             value={note}
-            onChange={e => setNote(e.target.value)}
+            onChange={(e) => setNote(e.target.value)}
           />
         </div>
       )}
 
       {actionMsg && (
-        <div className={`warn-callout${actionMsg.ok ? " ready" : " bad"}`} role="status">{actionMsg.text}</div>
+        <div className={`warn-callout${actionMsg.ok ? " ready" : " bad"}`} role="status">
+          {actionMsg.text}
+        </div>
       )}
 
       {isReady && node.displayStatus === "planned" && (
         <div className="warn-callout ready">依赖已满足，可以开工——点击上方「认领开工」直接开始。</div>
       )}
 
-      {warnings.map((w, i) => (
-        <div key={i} className="warn-callout">{w}</div>
+      {warnings.map((w) => (
+        <div key={w} className="warn-callout">
+          {w}
+        </div>
       ))}
 
       {hasDeps && (
@@ -274,10 +322,14 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
               <>
                 <span className="cbx" aria-hidden="true">
                   {a.done && (
-                    <svg viewBox="0 0 10 8"><path d="M1 4.2 3.6 6.8 9 1.2" /></svg>
+                    <svg viewBox="0 0 10 8" aria-hidden="true">
+                      <path d="M1 4.2 3.6 6.8 9 1.2" />
+                    </svg>
                   )}
                 </span>
-                <span className="acc-idx" aria-hidden="true">{i + 1}</span>
+                <span className="acc-idx" aria-hidden="true">
+                  {i + 1}
+                </span>
                 <span className="acc-text">{a.text}</span>
               </>
             );
@@ -285,7 +337,7 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
             // file:// 静态页无服务可写，退化为只读展示
             return CAN_MUTATE ? (
               <button
-                key={i}
+                key={a.text}
                 type="button"
                 className={`acc-row clickable${a.done ? " done" : ""}`}
                 title={`点击${a.done ? "取消勾选" : "勾选"}（等价 waymark acc ${node.id} ${i + 1}）`}
@@ -295,7 +347,9 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
                 {inner}
               </button>
             ) : (
-              <div key={i} className={`acc-row${a.done ? " done" : ""}`}>{inner}</div>
+              <div key={a.text} className={`acc-row${a.done ? " done" : ""}`}>
+                {inner}
+              </div>
             );
           })}
         </Section>
@@ -303,8 +357,8 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
 
       {node.evidenceReport.length > 0 && (
         <Section label="证据核验">
-          {node.evidenceReport.map((e, i) => (
-            <div key={i} className="evi-row">
+          {node.evidenceReport.map((e) => (
+            <div key={e.kind} className="evi-row">
               <span className={`evi-glyph ${e.skipped ? "skip" : e.ok ? "ok" : "bad"}`} aria-hidden="true">
                 {e.skipped ? "○" : e.ok ? "✓" : "✗"}
               </span>
@@ -320,18 +374,20 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       {node.commits.length > 0 && (
         <Section label={`关联提交 · ${node.commits.length}`}>
           <div className="timeline">
-            {commits.map(c => (
+            {commits.map((c) => (
               <div key={c.hash} className="tl-item">
                 <div className="tl-head">
                   <code className="hash">{c.hash}</code>
                   <span className="tl-date">{c.date}</span>
                 </div>
-                <div className="tl-msg" title={c.message}>{c.message}</div>
+                <div className="tl-msg" title={c.message}>
+                  {c.message}
+                </div>
               </div>
             ))}
           </div>
           {node.commits.length > COMMIT_PREVIEW && (
-            <button className="expand-btn" onClick={() => setShowAllCommits(v => !v)}>
+            <button type="button" className="expand-btn" onClick={() => setShowAllCommits((v) => !v)}>
               {showAllCommits ? "收起" : `展开全部 ${node.commits.length} 条提交`}
             </button>
           )}
@@ -341,8 +397,8 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       {node.completionLog.length > 0 && (
         <Section label="完成记录">
           <div className="timeline">
-            {node.completionLog.map((l, i) => (
-              <div key={i} className="tl-item">
+            {node.completionLog.map((l) => (
+              <div key={`${l.date}-${l.text}`} className="tl-item">
                 <div className="log-date">{l.date}</div>
                 <div className="log-text">{l.text}</div>
               </div>

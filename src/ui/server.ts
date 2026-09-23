@@ -1,10 +1,10 @@
-import http from "node:http";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
-import { watch, type FSWatcher } from "chokidar";
-import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
+import { type FSWatcher, watch } from "chokidar";
+import { blockNode, dropNode, markDone, reopenNode, startNode, toggleAcceptance } from "../plan/commands.js";
+import { collectEvidenceWatchTargets, loadBundle, renderWorkflowHtml } from "../render/render.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
-import { startNode, markDone, blockNode, dropNode, reopenNode, toggleAcceptance } from "../plan/commands.js";
 
 export { collectEvidenceWatchTargets } from "../render/render.js";
 
@@ -79,7 +79,13 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(403, { ok: false, error: "缺少 x-waymark 请求头（防跨站伪造）" });
         return;
       }
-      let body: { id?: unknown; note?: unknown; allAcceptance?: unknown; planned?: unknown; indices?: unknown };
+      let body: {
+        id?: unknown;
+        note?: unknown;
+        allAcceptance?: unknown;
+        planned?: unknown;
+        indices?: unknown;
+      };
       try {
         body = JSON.parse((await readBody(req)) || "{}");
       } catch {
@@ -90,9 +96,12 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(400, { ok: false, error: "缺少节点 id" });
         return;
       }
-      if (req.url === "/api/acc"
-        && (!Array.isArray(body.indices) || body.indices.length === 0
-          || !body.indices.every(n => Number.isInteger(n)))) {
+      if (
+        req.url === "/api/acc" &&
+        (!Array.isArray(body.indices) ||
+          body.indices.length === 0 ||
+          !body.indices.every((n) => Number.isInteger(n)))
+      ) {
         json(400, { ok: false, error: "缺少验收项序号 indices（非空整数数组，1 起编号）" });
         return;
       }
@@ -100,19 +109,26 @@ export function startServer(root: string, port: number, bundle?: string): http.S
       try {
         const result = (() => {
           switch (req.url) {
-            case "/api/start": return startNode(root, body.id as string);
-            case "/api/done": return markDone(root, body.id as string, {
-              note,
-              allAcceptance: body.allAcceptance === true,
-            });
-            case "/api/block": return blockNode(root, body.id as string, { note });
-            case "/api/drop": return dropNode(root, body.id as string, { note });
-            case "/api/reopen": return reopenNode(root, body.id as string, {
-              planned: body.planned === true,
-              note,
-            });
-            case "/api/acc": return toggleAcceptance(root, body.id as string, body.indices as number[]);
-            default: throw new Error(`未知接口: ${req.url}`);
+            case "/api/start":
+              return startNode(root, body.id as string);
+            case "/api/done":
+              return markDone(root, body.id as string, {
+                note,
+                allAcceptance: body.allAcceptance === true,
+              });
+            case "/api/block":
+              return blockNode(root, body.id as string, { note });
+            case "/api/drop":
+              return dropNode(root, body.id as string, { note });
+            case "/api/reopen":
+              return reopenNode(root, body.id as string, {
+                planned: body.planned === true,
+                note,
+              });
+            case "/api/acc":
+              return toggleAcceptance(root, body.id as string, body.indices as number[]);
+            default:
+              throw new Error(`未知接口: ${req.url}`);
           }
         })();
         try {
@@ -120,8 +136,12 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         } catch {
           // 数据半写状态渲染失败不影响操作结果，等下次变更再刷新
         }
-        json(200, { ok: true, file: result.file, warnings: result.warnings,
-          ...("acceptance" in result ? { acceptance: result.acceptance } : {}) });
+        json(200, {
+          ok: true,
+          file: result.file,
+          warnings: result.warnings,
+          ...("acceptance" in result ? { acceptance: result.acceptance } : {}),
+        });
       } catch (e) {
         json(400, { ok: false, error: (e as Error).message });
       }
@@ -144,8 +164,14 @@ export function startServer(root: string, port: number, bundle?: string): http.S
     path.join(root, ".git", "index"),
     ...collectEvidenceWatchTargets(root),
   ]
-    .filter(t => fs.existsSync(t))
-    .map(t => { try { return fs.realpathSync(t); } catch { return t; } });
+    .filter((t) => fs.existsSync(t))
+    .map((t) => {
+      try {
+        return fs.realpathSync(t);
+      } catch {
+        return t;
+      }
+    });
   const uniqueTargets = [...new Set(watchTargets)];
 
   server.on("listening", () => {

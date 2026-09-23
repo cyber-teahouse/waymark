@@ -34,29 +34,57 @@ export const IterationFrontmatterSchema = z.object({
 });
 export type IterationFrontmatter = z.infer<typeof IterationFrontmatterSchema>;
 
-export interface CompletionEntry { date: string; text: string }
+export interface CompletionEntry {
+  date: string;
+  text: string;
+}
 
 export interface PlanDoc {
-  file: string;            // 相对项目根的 posix 路径，如 plan/milestones/M1-core.md
+  file: string; // 相对项目根的 posix 路径，如 plan/milestones/M1-core.md
   fm: NodeFrontmatter;
-  description: string;     // “## 需求描述”正文
+  description: string; // “## 需求描述”正文
   completionLog: CompletionEntry[];
 }
 
-export interface IterationDoc { file: string; fm: IterationFrontmatter }
-
-export interface OverviewTableEntry { id: string; title: string; iteration: string }
-export interface OverviewDoc { file: string; table: OverviewTableEntry[] }
-
-export interface PlanIssue { level: "error" | "warning"; file: string; message: string }
-
-export interface AcceptanceItem { text: string; done: boolean }
-
-export interface EvidenceCheck {
-  kind: EvidenceKind; ok: boolean; score: number; detail: string; skipped?: boolean;
+export interface IterationDoc {
+  file: string;
+  fm: IterationFrontmatter;
 }
 
-export interface CommitInfo { hash: string; date: string; message: string }
+export interface OverviewTableEntry {
+  id: string;
+  title: string;
+  iteration: string;
+}
+export interface OverviewDoc {
+  file: string;
+  table: OverviewTableEntry[];
+}
+
+export interface PlanIssue {
+  level: "error" | "warning";
+  file: string;
+  message: string;
+}
+
+export interface AcceptanceItem {
+  text: string;
+  done: boolean;
+}
+
+export interface EvidenceCheck {
+  kind: EvidenceKind;
+  ok: boolean;
+  score: number;
+  detail: string;
+  skipped?: boolean;
+}
+
+export interface CommitInfo {
+  hash: string;
+  date: string;
+  message: string;
+}
 
 export const WorkflowNodeSchema = z.object({
   id: z.string(),
@@ -68,10 +96,15 @@ export const WorkflowNodeSchema = z.object({
   warning: z.enum(["evidence-insufficient", "ready-to-complete", "stalled"]).nullable(),
   cycle: z.boolean().optional(),
   confidence: z.number(),
-  evidenceReport: z.array(z.object({
-    kind: z.enum(["paths", "grep", "tests", "git"]),
-    ok: z.boolean(), score: z.number(), detail: z.string(), skipped: z.boolean().optional(),
-  })),
+  evidenceReport: z.array(
+    z.object({
+      kind: z.enum(["paths", "grep", "tests", "git"]),
+      ok: z.boolean(),
+      score: z.number(),
+      detail: z.string(),
+      skipped: z.boolean().optional(),
+    }),
+  ),
   acceptance: z.array(z.object({ text: z.string(), done: z.boolean() })),
   completionLog: z.array(z.object({ date: z.string(), text: z.string() })),
   commits: z.array(z.object({ hash: z.string(), date: z.string(), message: z.string() })),
@@ -88,25 +121,55 @@ export const WorkflowJsonSchema = z.object({
   project: z.string(),
   nodes: z.array(WorkflowNodeSchema),
   edges: z.array(z.object({ from: z.string(), to: z.string() })),
-  iterations: z.array(z.object({
-    id: z.string(), title: z.string(),
-    goal: z.string().optional(), window: z.string().optional(),
-    nodeIds: z.array(z.string()),
-  })),
-  issues: z.array(z.object({
-    level: z.enum(["error", "warning"]), file: z.string(), message: z.string(),
-  })).optional(),
+  iterations: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      goal: z.string().optional(),
+      window: z.string().optional(),
+      nodeIds: z.array(z.string()),
+    }),
+  ),
+  issues: z
+    .array(
+      z.object({
+        level: z.enum(["error", "warning"]),
+        file: z.string(),
+        message: z.string(),
+      }),
+    )
+    .optional(),
   stats: z.object({
-    total: z.number(), done: z.number(), inProgress: z.number(),
-    planned: z.number(), blocked: z.number(), dropped: z.number(), warnings: z.number(),
+    total: z.number(),
+    done: z.number(),
+    inProgress: z.number(),
+    planned: z.number(),
+    blocked: z.number(),
+    dropped: z.number(),
+    warnings: z.number(),
   }),
 });
 export type WorkflowJson = z.infer<typeof WorkflowJsonSchema>;
 
 export const DEFAULT_IGNORES = [
-  "**/node_modules/**", "**/.git/**", "**/dist/**", "**/out/**", "**/build/**",
-  "**/bin/**", "**/obj/**", "**/.waymark/**", "**/coverage/**",
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/dist/**",
+  "**/out/**",
+  "**/build/**",
+  "**/bin/**",
+  "**/obj/**",
+  "**/.waymark/**",
+  "**/coverage/**",
 ];
 export const IGNORE_DIR_NAMES = [
-  "node_modules", ".git", "dist", "out", "build", "bin", "obj", ".waymark", "coverage",
+  "node_modules",
+  ".git",
+  "dist",
+  "out",
+  "build",
+  "bin",
+  "obj",
+  ".waymark",
+  "coverage",
 ];

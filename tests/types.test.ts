@@ -1,11 +1,14 @@
-import { describe, it, expect } from "vitest";
-import {
-  NodeFrontmatterSchema, IterationFrontmatterSchema, WorkflowJsonSchema,
-} from "../src/types.js";
+import { describe, expect, it } from "vitest";
+import { IterationFrontmatterSchema, NodeFrontmatterSchema, WorkflowJsonSchema } from "../src/types.js";
 
 const validFm = {
-  id: "M1-core", title: "核心骨架", type: "milestone", status: "done",
-  deps: [], acceptance: ["[x] 初始化", "[ ] 清理"], evidence: { paths: ["src/core/**"] },
+  id: "M1-core",
+  title: "核心骨架",
+  type: "milestone",
+  status: "done",
+  deps: [],
+  acceptance: ["[x] 初始化", "[ ] 清理"],
+  evidence: { paths: ["src/core/**"] },
 };
 
 describe("NodeFrontmatterSchema", () => {
@@ -35,13 +38,28 @@ describe("IterationFrontmatterSchema", () => {
 describe("WorkflowJsonSchema", () => {
   it("accepts a minimal workflow", () => {
     const wf = {
-      version: 1, generatedAt: "2026-09-20T00:00:00+08:00", project: "demo",
-      nodes: [{
-        id: "M1-core", title: "核心骨架", type: "milestone",
-        declaredStatus: "done", inferredStatus: "done", displayStatus: "done",
-        warning: null, confidence: 1, evidenceReport: [], acceptance: [],
-        completionLog: [], commits: [], deps: [], file: "plan/milestones/M1.md", description: "",
-      }],
+      version: 1,
+      generatedAt: "2026-09-20T00:00:00+08:00",
+      project: "demo",
+      nodes: [
+        {
+          id: "M1-core",
+          title: "核心骨架",
+          type: "milestone",
+          declaredStatus: "done",
+          inferredStatus: "done",
+          displayStatus: "done",
+          warning: null,
+          confidence: 1,
+          evidenceReport: [],
+          acceptance: [],
+          completionLog: [],
+          commits: [],
+          deps: [],
+          file: "plan/milestones/M1.md",
+          description: "",
+        },
+      ],
       edges: [],
       iterations: [{ id: "I1", title: "MVP", nodeIds: ["M1-core"] }],
       stats: { total: 1, done: 1, inProgress: 0, planned: 0, blocked: 0, dropped: 0, warnings: 0 },

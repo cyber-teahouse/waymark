@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { beforeAll, describe, expect, it } from "vitest";
 import { scoreGrep } from "../src/infer/scoreGrep.js";
+import { makeSampleProject } from "./helpers.js";
 
 let root: string;
 beforeAll(async () => {
@@ -32,7 +32,7 @@ describe("scoreGrep", () => {
   });
   it("skips binary files and huge files", () => {
     fs.writeFileSync(path.join(root, "bin.dat"), Buffer.from([0x00, 0x01, 0x62, 0x63]));
-    fs.writeFileSync(path.join(root, "huge.txt"), "coreInit" + "a".repeat(1_100_000));
+    fs.writeFileSync(path.join(root, "huge.txt"), `coreInit${"a".repeat(1_100_000)}`);
     const r = scoreGrep(root, ["coreInit"], ["bin.dat", "huge.txt", "src/core/**"]);
     expect(r.check.score).toBe(1); // 仍由 src/core 命中；bin/huge 被跳过不报错
   });

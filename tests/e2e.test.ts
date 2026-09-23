@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { describe, expect, it } from "vitest";
+import { renderWorkflowHtml, writeWorkflow } from "../src/render/render.js";
 import { runInit } from "../src/scaffold.js";
 import { buildWorkflow } from "../src/sync/build.js";
-import { writeWorkflow, renderWorkflowHtml } from "../src/render/render.js";
+import { makeSampleProject } from "./helpers.js";
 
 describe("e2e: init → sync → render", () => {
   it("init scaffold passes its own check; sync+render produce viewable html", async () => {

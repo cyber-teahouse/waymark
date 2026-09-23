@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { WorkflowJsonSchema } from "../types.js";
 import { planNewerThan } from "../render/render.js";
+import { WorkflowJsonSchema } from "../types.js";
 const BAR_W = 24;
 function relTime(iso, now) {
     const t = new Date(iso).getTime();
@@ -30,16 +30,18 @@ export function renderStatus(wf, now = new Date()) {
     lines.push(`${wf.project} · 进度工作流`);
     lines.push(`${bar} ${pct}%（${s.done}/${s.total}）`);
     const parts = [
-        `完成 ${s.done}`, `进行中 ${s.inProgress}`, `未开始 ${s.planned}`,
+        `完成 ${s.done}`,
+        `进行中 ${s.inProgress}`,
+        `未开始 ${s.planned}`,
         ...(s.blocked > 0 ? [`受阻 ${s.blocked}`] : []),
         ...(s.dropped > 0 ? [`已放弃 ${s.dropped}`] : []),
         ...(s.warnings > 0 ? [`⚠ 警示 ${s.warnings}`] : []),
     ];
     lines.push(parts.join(" · "));
     // 可开工：planned 且依赖全部 done/dropped（缺失视为满足，与 CLI ready 同口径）
-    const statusOf = new Map(wf.nodes.map(n => [n.id, n.displayStatus]));
-    const ready = wf.nodes.filter(n => n.displayStatus === "planned"
-        && n.deps.every(d => {
+    const statusOf = new Map(wf.nodes.map((n) => [n.id, n.displayStatus]));
+    const ready = wf.nodes.filter((n) => n.displayStatus === "planned" &&
+        n.deps.every((d) => {
             const st = statusOf.get(d);
             return st === undefined || st === "done" || st === "dropped";
         }));
@@ -49,13 +51,13 @@ export function renderStatus(wf, now = new Date()) {
             lines.push(`  ▶ ${n.id}  ${n.title}${n.iteration ? `  [${n.iteration}]` : ""}`);
         }
     }
-    const blocked = wf.nodes.filter(n => n.displayStatus === "blocked");
+    const blocked = wf.nodes.filter((n) => n.displayStatus === "blocked");
     if (blocked.length > 0) {
         lines.push("", `受阻 ${blocked.length} 个:`);
         for (const n of blocked)
             lines.push(`  ▲ ${n.id}  ${n.title}`);
     }
-    const errors = (wf.issues ?? []).filter(i => i.level === "error").length;
+    const errors = (wf.issues ?? []).filter((i) => i.level === "error").length;
     if (errors > 0)
         lines.push("", `✖ plan 存在 ${errors} 个规范错误（waymark check 查看）`);
     const gen = relTime(wf.generatedAt, now);
@@ -77,7 +79,7 @@ export async function statusReport(root, opts = {}) {
         const { writeWorkflow } = await import("../render/render.js");
         const { workflow, issues } = await buildWorkflow(root);
         writeWorkflow(root, workflow);
-        if (issues.some(i => i.level === "error")) {
+        if (issues.some((i) => i.level === "error")) {
             console.warn("⚠ plan 存在规范错误（waymark check 查看），已按当前数据展示");
         }
     }

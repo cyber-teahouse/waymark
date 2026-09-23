@@ -37,8 +37,15 @@ function collectCandidates(root, scopeGlobs) {
         walkFiles(root, files);
         return files;
     }
-    return fg.sync(scopeGlobs, { cwd: root, onlyFiles: true, dot: false, ignore: DEFAULT_IGNORES, suppressErrors: true })
-        .map(f => path.join(root, f));
+    return fg
+        .sync(scopeGlobs, {
+        cwd: root,
+        onlyFiles: true,
+        dot: false,
+        ignore: DEFAULT_IGNORES,
+        suppressErrors: true,
+    })
+        .map((f) => path.join(root, f));
 }
 function cacheKey(scopeGlobs) {
     return scopeGlobs.join("\u0000");
@@ -49,11 +56,17 @@ export function scoreGrep(root, patterns, scopeGlobs = [], fileCache) {
     }
     let regexes;
     try {
-        regexes = patterns.map(p => new RegExp(p));
+        regexes = patterns.map((p) => new RegExp(p));
     }
     catch (e) {
         return {
-            check: { kind: "grep", ok: false, score: 0, detail: `正则无效: ${e.message}`, skipped: true },
+            check: {
+                kind: "grep",
+                ok: false,
+                score: 0,
+                detail: `正则无效: ${e.message}`,
+                skipped: true,
+            },
             sampleHits: [],
         };
     }
@@ -88,7 +101,7 @@ export function scoreGrep(root, patterns, scopeGlobs = [], fileCache) {
             continue;
         const lines = buf.toString("utf8").split(/\r?\n/);
         for (let i = 0; i < lines.length; i++) {
-            if (regexes.some(re => re.test(lines[i]))) {
+            if (regexes.some((re) => re.test(lines[i]))) {
                 anyHit = true;
                 if (sampleHits.length < 3) {
                     sampleHits.push(`${path.relative(root, file).split(path.sep).join("/")}:${i + 1}`);

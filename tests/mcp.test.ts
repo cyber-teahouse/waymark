@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { makeSampleProject } from "./helpers.js";
+import { describe, expect, it } from "vitest";
 import { createMcpServer } from "../src/mcp/server.js";
 import { getWorkflowCacheStats, resetWorkflowCache } from "../src/sync/workflowCache.js";
+import { makeSampleProject } from "./helpers.js";
 
 const TOOL_NAMES = [
   "waymark_summary",
@@ -34,9 +34,10 @@ type ToolResult = { isError?: boolean; content: Array<{ type: string; text?: str
 
 function textOf(result: ToolResult): string {
   expect(result.isError).toBeFalsy();
-  return result.content.map(c => (c.type === "text" ? c.text ?? "" : "")).join("");
+  return result.content.map((c) => (c.type === "text" ? (c.text ?? "") : "")).join("");
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: 测试辅助函数，各工具返回的 JSON 结构不一，调用处自行收窄
 function jsonOf(result: ToolResult): any {
   return JSON.parse(textOf(result));
 }
@@ -52,7 +53,7 @@ describe("waymark mcp server", () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
     const { tools } = await client.listTools();
-    expect(tools.map(t => t.name).sort()).toEqual([...TOOL_NAMES].sort());
+    expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
     for (const t of tools) {
       expect(t.description?.length ?? 0).toBeGreaterThan(0);
     }
@@ -70,8 +71,7 @@ describe("waymark mcp server", () => {
     expect(obj.project.length).toBeGreaterThan(0);
     expect(typeof obj.generatedAt).toBe("string");
     expect(typeof obj.issuesCount).toBe("number");
-    expect(obj.nodes.map((n: { id: string }) => n.id).sort())
-      .toEqual(["M1-core", "M2-auth", "M3-login"]);
+    expect(obj.nodes.map((n: { id: string }) => n.id).sort()).toEqual(["M1-core", "M2-auth", "M3-login"]);
     // 轻量化：不携带重量级字段
     for (const n of obj.nodes) {
       expect(n.evidenceReport).toBeUndefined();
@@ -123,13 +123,18 @@ describe("waymark mcp server", () => {
     expect(doneObj.readyNext.map((i: { id: string }) => i.id)).toEqual(["M3-login"]);
 
     // 通过 get_node 验证声明状态已变为 done
-    const node = jsonOf(await client.callTool({
-      name: "waymark_get_node", arguments: { id: "M2-auth" },
-    }) as ToolResult);
+    const node = jsonOf(
+      (await client.callTool({
+        name: "waymark_get_node",
+        arguments: { id: "M2-auth" },
+      })) as ToolResult,
+    );
     expect(node.declaredStatus).toBe("done");
 
     // M3-login 的依赖 M2-auth 已完成 → 可开工
-    const ready = jsonOf(await client.callTool({ name: "waymark_list_ready", arguments: {} }) as ToolResult);
+    const ready = jsonOf(
+      (await client.callTool({ name: "waymark_list_ready", arguments: {} })) as ToolResult,
+    );
     expect(ready.items.map((i: { id: string }) => i.id)).toEqual(["M3-login"]);
     await client.close();
     await server.close();
@@ -140,13 +145,19 @@ describe("waymark mcp server", () => {
     const { server, client } = await setup(root);
     // 先完成 M2 → M3 变为可开工
     await client.callTool({ name: "waymark_mark_done", arguments: { id: "M2-auth", allAcceptance: true } });
-    const started = jsonOf(await client.callTool({
-      name: "waymark_start_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const started = jsonOf(
+      (await client.callTool({
+        name: "waymark_start_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(started.warnings).toEqual([]);
-    const node = jsonOf(await client.callTool({
-      name: "waymark_get_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const node = jsonOf(
+      (await client.callTool({
+        name: "waymark_get_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(node.declaredStatus).toBe("in-progress");
     // 已完成节点不可再认领
     const bad = await client.callTool({ name: "waymark_start_node", arguments: { id: "M2-auth" } });
@@ -158,9 +169,12 @@ describe("waymark mcp server", () => {
   it("waymark_mark_done returns guardrail warnings (deps/acceptance)", async () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
-    const done = jsonOf(await client.callTool({
-      name: "waymark_mark_done", arguments: { id: "M2-auth" },
-    }) as ToolResult);
+    const done = jsonOf(
+      (await client.callTool({
+        name: "waymark_mark_done",
+        arguments: { id: "M2-auth" },
+      })) as ToolResult,
+    );
     expect(done.warnings.some((w: string) => w.includes("验收标准未勾选"))).toBe(true);
     await client.close();
     await server.close();
@@ -208,31 +222,48 @@ describe("waymark 旁路与撤销工具", () => {
     const { server, client } = await setup(root);
 
     // M3-login planned → blocked（带说明）
-    const blocked = jsonOf(await client.callTool({
-      name: "waymark_block_node", arguments: { id: "M3-login", note: "等待设计稿" },
-    }) as ToolResult);
+    const blocked = jsonOf(
+      (await client.callTool({
+        name: "waymark_block_node",
+        arguments: { id: "M3-login", note: "等待设计稿" },
+      })) as ToolResult,
+    );
     expect(blocked.message).toContain("blocked");
-    const node1 = jsonOf(await client.callTool({
-      name: "waymark_get_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const node1 = jsonOf(
+      (await client.callTool({
+        name: "waymark_get_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(node1.declaredStatus).toBe("blocked");
-    expect(node1.completionLog.some((l: { text: string }) => l.text.includes("[blocked] 等待设计稿"))).toBe(true);
+    expect(node1.completionLog.some((l: { text: string }) => l.text.includes("[blocked] 等待设计稿"))).toBe(
+      true,
+    );
 
     // blocked → reopen → in-progress
-    const reopened = jsonOf(await client.callTool({
-      name: "waymark_reopen_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const reopened = jsonOf(
+      (await client.callTool({
+        name: "waymark_reopen_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(reopened.message).toContain("in-progress");
-    const node2 = jsonOf(await client.callTool({
-      name: "waymark_get_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const node2 = jsonOf(
+      (await client.callTool({
+        name: "waymark_get_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(node2.declaredStatus).toBe("in-progress");
 
     // in-progress → drop → dropped
     await client.callTool({ name: "waymark_drop_node", arguments: { id: "M3-login" } });
-    const node3 = jsonOf(await client.callTool({
-      name: "waymark_get_node", arguments: { id: "M3-login" },
-    }) as ToolResult);
+    const node3 = jsonOf(
+      (await client.callTool({
+        name: "waymark_get_node",
+        arguments: { id: "M3-login" },
+      })) as ToolResult,
+    );
     expect(node3.declaredStatus).toBe("dropped");
 
     await client.close();
@@ -254,8 +285,9 @@ describe("waymark_toggle_acceptance", () => {
       { done: true, text: "刷新令牌" },
     ]);
     expect(obj.warnings.some((w: string) => w.includes("全部勾选"))).toBe(true);
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8"))
-      .toContain("- [x] 刷新令牌");
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8")).toContain(
+      "- [x] 刷新令牌",
+    );
 
     const bad = await client.callTool({
       name: "waymark_toggle_acceptance",

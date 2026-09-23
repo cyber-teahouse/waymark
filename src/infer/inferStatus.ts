@@ -1,13 +1,18 @@
 import type {
-  AcceptanceItem, CommitInfo, EvidenceCheck, EvidenceKind, NodeFrontmatter, NodeStatus,
+  AcceptanceItem,
+  CommitInfo,
+  EvidenceCheck,
+  EvidenceKind,
+  NodeFrontmatter,
+  NodeStatus,
 } from "../types.js";
 import type { GitSnapshot } from "./scoreGit.js";
-import { scorePaths, scoreTests } from "./scorePaths.js";
-import { scoreGrep } from "./scoreGrep.js";
 import { scoreGit } from "./scoreGit.js";
+import { scoreGrep } from "./scoreGrep.js";
+import { scorePaths, scoreTests } from "./scorePaths.js";
 
 export function parseAcceptance(items: string[]): AcceptanceItem[] {
-  return items.map(s => {
+  return items.map((s) => {
     const m = /^\[([ xX])\]\s*(.+)$/.exec(s.trim());
     return m ? { done: m[1] !== " ", text: m[2] } : { done: false, text: s.trim() };
   });
@@ -15,7 +20,7 @@ export function parseAcceptance(items: string[]): AcceptanceItem[] {
 
 export interface InferenceResult {
   report: EvidenceCheck[];
-  score: number;              // 已声明维度平均分 0~1
+  score: number; // 已声明维度平均分 0~1
   inferred: NodeStatus | null; // 无 evidence 时为 null
   confidence: number;
   commits: CommitInfo[];
@@ -57,12 +62,14 @@ export async function inferEvidence(
     declared.push("git");
   }
 
-  const score = declared.length === 0
-    ? 0
-    : declared.reduce((sum, kind) => sum + (report.find(c => c.kind === kind)?.score ?? 0), 0) / declared.length;
+  const score =
+    declared.length === 0
+      ? 0
+      : declared.reduce((sum, kind) => sum + (report.find((c) => c.kind === kind)?.score ?? 0), 0) /
+        declared.length;
 
   const acceptance = parseAcceptance(fm.acceptance);
-  const allDone = acceptance.length > 0 && acceptance.every(a => a.done);
+  const allDone = acceptance.length > 0 && acceptance.every((a) => a.done);
   let inferred: NodeStatus;
   if (score <= 0) inferred = "planned";
   else if (score >= 1) inferred = allDone ? "done" : "in-progress";

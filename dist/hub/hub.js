@@ -14,7 +14,7 @@ export function gatherHubData(patterns) {
             dirs.add(d);
         }
     }
-    return [...dirs].sort().map(dir => {
+    return [...dirs].sort().map((dir) => {
         const wfFile = path.join(dir, ".waymark", "workflow.json");
         const page = path.join(dir, ".waymark", "index.html");
         const hasPage = fs.existsSync(page);
@@ -34,7 +34,9 @@ export function gatherHubData(patterns) {
                 dir,
                 name: path.basename(dir),
                 found: false,
-                error: fs.existsSync(wfFile) ? `workflow.json 解析失败: ${e.message}` : "未生成工作流数据（在项目根运行 waymark sync）",
+                error: fs.existsSync(wfFile)
+                    ? `workflow.json 解析失败: ${e.message}`
+                    : "未生成工作流数据（在项目根运行 waymark sync）",
                 pagePath: hasPage ? page : undefined,
             };
         }
@@ -71,7 +73,8 @@ function ring(percent) {
 /** 聚合页：纯静态 HTML（复用任务控制台视觉令牌），卡片链接指向各项目 index.html。 */
 export function renderHubHtml(entries, generatedAt) {
     const STALE_DAYS = 7;
-    const cards = entries.map(e => {
+    const cards = entries
+        .map((e) => {
         const title = escapeHtml(e.name);
         if (!e.found) {
             return `<div class="hub-card hub-missing">
@@ -85,9 +88,7 @@ export function renderHubHtml(entries, generatedAt) {
         const stale = e.generatedAt
             ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS
             : false;
-        const link = e.pagePath
-            ? `file:///${e.pagePath.replace(/\\/g, "/").replace(/^\/+/, "")}`
-            : null;
+        const link = e.pagePath ? `file:///${e.pagePath.replace(/\\/g, "/").replace(/^\/+/, "")}` : null;
         const open = `<div class="hub-open">${link ? `<a href="${link}">打开进度页 →</a>` : `<span class="hub-no-page">未渲染页面（waymark render）</span>`}</div>`;
         return `<div class="hub-card">
       <div class="hub-card-head">${ring(percent)}
@@ -105,7 +106,8 @@ export function renderHubHtml(entries, generatedAt) {
       </div>
       ${open}
     </div>`;
-    }).join("\n");
+    })
+        .join("\n");
     return `<!doctype html>
 <html lang="zh-CN">
 <head>

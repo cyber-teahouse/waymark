@@ -2,9 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import {
-  NodeFrontmatterSchema, IterationFrontmatterSchema,
-  type PlanDoc, type IterationDoc, type OverviewDoc, type OverviewTableEntry,
-  type CompletionEntry, type PlanIssue,
+  type CompletionEntry,
+  type IterationDoc,
+  IterationFrontmatterSchema,
+  NodeFrontmatterSchema,
+  type OverviewDoc,
+  type OverviewTableEntry,
+  type PlanDoc,
+  type PlanIssue,
 } from "../types.js";
 
 function extractSection(content: string, heading: string): string {
@@ -20,25 +25,26 @@ function extractSection(content: string, heading: string): string {
 function parseCompletionLog(content: string): CompletionEntry[] {
   return extractSection(content, "完成记录")
     .split("\n")
-    .map(l => l.trim())
-    .map(l => /^-\s*(\d{4}-\d{2}-\d{2})\s+(.+)$/.exec(l))
+    .map((l) => l.trim())
+    .map((l) => /^-\s*(\d{4}-\d{2}-\d{2})\s+(.+)$/.exec(l))
     .filter((m): m is RegExpExecArray => m !== null)
-    .map(m => ({ date: m[1], text: m[2] }));
+    .map((m) => ({ date: m[1], text: m[2] }));
 }
 
 function listMdFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter(f => f.endsWith(".md")).sort();
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort();
 }
 
 export function listNodeFiles(root: string): string[] {
-  return listMdFiles(path.join(root, "plan", "milestones"))
-    .map(f => `plan/milestones/${f}`);
+  return listMdFiles(path.join(root, "plan", "milestones")).map((f) => `plan/milestones/${f}`);
 }
 
 export function listIterationFiles(root: string): string[] {
-  return listMdFiles(path.join(root, "plan", "iterations"))
-    .map(f => `plan/iterations/${f}`);
+  return listMdFiles(path.join(root, "plan", "iterations")).map((f) => `plan/iterations/${f}`);
 }
 
 function toPosix(p: string): string {
@@ -55,10 +61,16 @@ function preprocessYaml(raw: string): string {
   const close = /^---[ \t]*(\r?\n|$)/m.exec(raw.slice(bodyStart));
   if (!close) return raw;
   const bodyEnd = bodyStart + close.index;
-  const fixed = raw.slice(bodyStart, bodyEnd).split(/\r?\n/).map(l =>
-    l.replace(/^(\s*-\s*)\[([ xX])\]\s*(.*)$/,
-      (_l: string, dash: string, mark: string, text: string) =>
-        `${dash}"[${mark}] ${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`))
+  const fixed = raw
+    .slice(bodyStart, bodyEnd)
+    .split(/\r?\n/)
+    .map((l) =>
+      l.replace(
+        /^(\s*-\s*)\[([ xX])\]\s*(.*)$/,
+        (_l: string, dash: string, mark: string, text: string) =>
+          `${dash}"[${mark}] ${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
+      ),
+    )
     .join("\n");
   return raw.slice(0, bodyStart) + fixed + raw.slice(bodyEnd);
 }
@@ -76,11 +88,13 @@ export function parseNodeFile(root: string, relFile: string): { doc?: PlanDoc; i
   try {
     parsed = matter(preprocessYaml(raw));
   } catch (e) {
-    return { issue: { level: "error", file: relFile, message: `frontmatter 解析失败: ${(e as Error).message}` } };
+    return {
+      issue: { level: "error", file: relFile, message: `frontmatter 解析失败: ${(e as Error).message}` },
+    };
   }
   const fm = NodeFrontmatterSchema.safeParse(parsed.data);
   if (!fm.success) {
-    const msg = fm.error.issues.map(i => `${i.path.join(".")} ${i.message}`).join("; ");
+    const msg = fm.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ");
     return { issue: { level: "error", file: relFile, message: `frontmatter 校验失败: ${msg}` } };
   }
   return {
@@ -103,7 +117,9 @@ export function parseIterationFile(root: string, relFile: string): { doc?: Itera
   }
   const fm = IterationFrontmatterSchema.safeParse(parsed.data);
   if (!fm.success) {
-    return { issue: { level: "error", file: relFile, message: `迭代 frontmatter 校验失败: ${fm.error.message}` } };
+    return {
+      issue: { level: "error", file: relFile, message: `迭代 frontmatter 校验失败: ${fm.error.message}` },
+    };
   }
   return { doc: { file: toPosix(relFile), fm: fm.data } };
 }
@@ -113,15 +129,33 @@ export function parseOverview(root: string): { doc?: OverviewDoc; issue?: PlanIs
   const relFile = "plan/overview.md";
   const abs = path.join(root, relFile);
   if (!fs.existsSync(abs)) {
-    return { issue: { level: "error", file: relFile, message: "缺少 plan/overview.md（总览表用于与 milestones/ 交叉校验）" } };
+    return {
+      issue: {
+        level: "error",
+        file: relFile,
+        message: "缺少 plan/overview.md（总览表用于与 milestones/ 交叉校验）",
+      },
+    };
   }
-  const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/).filter(l => l.trim().startsWith("|"));
+  const lines = fs
+    .readFileSync(abs, "utf8")
+    .split(/\r?\n/)
+    .filter((l) => l.trim().startsWith("|"));
   const rows = lines
-    .map(l => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim()))
-    .filter(cells => !cells.every(c => /^[-: ]*$/.test(c)))   // 去分隔行
-    .filter(cells => cells.length >= 2 && cells[0] !== "" && !/^id$/i.test(cells[0]));  // 去表头
-  const table: OverviewTableEntry[] = rows.map(cells => ({
-    id: cells[0], title: cells[1], iteration: cells[2] ?? "",
+    .map((l) =>
+      l
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((c) => c.trim()),
+    )
+    .filter((cells) => !cells.every((c) => /^[-: ]*$/.test(c))) // 去分隔行
+    .filter((cells) => cells.length >= 2 && cells[0] !== "" && !/^id$/i.test(cells[0])); // 去表头
+  const table: OverviewTableEntry[] = rows.map((cells) => ({
+    id: cells[0],
+    title: cells[1],
+    iteration: cells[2] ?? "",
   }));
   return { doc: { file: relFile, table } };
 }

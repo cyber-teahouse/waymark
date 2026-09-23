@@ -1,21 +1,35 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "../src/plan/commands.js";
+import { describe, expect, it } from "vitest";
 import { loadPlan } from "../src/parser/parsePlan.js";
+import {
+  blockNode,
+  dropNode,
+  listReady,
+  markDone,
+  reopenNode,
+  startNode,
+  toggleAcceptance,
+} from "../src/plan/commands.js";
+import { makeSampleProject } from "./helpers.js";
 
 function makeTinyProject(dest: string): void {
   fs.mkdirSync(path.join(dest, "plan", "milestones"), { recursive: true });
   fs.mkdirSync(path.join(dest, "plan", "iterations"), { recursive: true });
-  fs.writeFileSync(path.join(dest, "plan", "overview.md"),
-    "# 总览\n\n| id | 标题 | 迭代 |\n|----|------|------|\n| A-base | 基座 | I1 |\n| B-app | 应用 | I1 |\n");
+  fs.writeFileSync(
+    path.join(dest, "plan", "overview.md"),
+    "# 总览\n\n| id | 标题 | 迭代 |\n|----|------|------|\n| A-base | 基座 | I1 |\n| B-app | 应用 | I1 |\n",
+  );
   fs.writeFileSync(path.join(dest, "plan", "iterations", "I1.md"), "---\nid: I1\ntitle: 一期\n---\n");
-  fs.writeFileSync(path.join(dest, "plan", "milestones", "A.md"),
-    "---\nid: A-base\ntitle: 基座\ntype: milestone\nstatus: done\ndeps: []\niteration: I1\nacceptance:\n  - [ ] 验收一\n---\n\n## 需求描述\n基座。\n");
-  fs.writeFileSync(path.join(dest, "plan", "milestones", "B.md"),
-    "---\nid: B-app\ntitle: 应用\ntype: milestone\nstatus: planned\ndeps: [A-base]\niteration: I1\nacceptance:\n  - [ ] 全部就绪\n---\n\n## 需求描述\n应用层。\n");
+  fs.writeFileSync(
+    path.join(dest, "plan", "milestones", "A.md"),
+    "---\nid: A-base\ntitle: 基座\ntype: milestone\nstatus: done\ndeps: []\niteration: I1\nacceptance:\n  - [ ] 验收一\n---\n\n## 需求描述\n基座。\n",
+  );
+  fs.writeFileSync(
+    path.join(dest, "plan", "milestones", "B.md"),
+    "---\nid: B-app\ntitle: 应用\ntype: milestone\nstatus: planned\ndeps: [A-base]\niteration: I1\nacceptance:\n  - [ ] 全部就绪\n---\n\n## 需求描述\n应用层。\n",
+  );
 }
 
 describe("markDone", () => {
@@ -37,7 +51,7 @@ describe("markDone", () => {
     makeTinyProject(root);
     markDone(root, "B-app", { allAcceptance: true, date: "2026-09-21" });
     const plan = loadPlan(root);
-    const b = plan.nodes.find(n => n.fm.id === "B-app")!;
+    const b = plan.nodes.find((n) => n.fm.id === "B-app")!;
     expect(b.fm.acceptance).toEqual(["[x] 全部就绪"]);
   });
   it("creates completion section when missing", () => {
@@ -71,9 +85,10 @@ describe("startNode", () => {
     const aFile = path.join(root, "plan", "milestones", "A.md");
     fs.writeFileSync(aFile, fs.readFileSync(aFile, "utf8").replace("status: done", "status: in-progress"));
     const { warnings } = startNode(root, "B-app");
-    expect(warnings.some(w => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8"))
-      .toMatch(/^status: in-progress$/m);
+    expect(warnings.some((w) => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toMatch(
+      /^status: in-progress$/m,
+    );
   });
   it("throws when node is not planned", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-start3-"));
@@ -90,8 +105,8 @@ describe("markDone 护栏警告", () => {
     const aFile = path.join(root, "plan", "milestones", "A.md");
     fs.writeFileSync(aFile, fs.readFileSync(aFile, "utf8").replace("status: done", "status: in-progress"));
     const { warnings } = markDone(root, "B-app", { date: "2026-09-22" });
-    expect(warnings.some(w => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
-    expect(warnings.some(w => w.includes("验收标准未勾选"))).toBe(true);
+    expect(warnings.some((w) => w.includes("依赖未完成") && w.includes("A-base"))).toBe(true);
+    expect(warnings.some((w) => w.includes("验收标准未勾选"))).toBe(true);
   });
   it("no warnings when deps done and --acc given", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard2-"));
@@ -105,13 +120,13 @@ describe("markDone 护栏警告", () => {
     const bFile = path.join(root, "plan", "milestones", "B.md");
     fs.writeFileSync(bFile, fs.readFileSync(bFile, "utf8").replace("status: planned", "status: blocked"));
     const { warnings } = markDone(root, "B-app", { allAcceptance: true });
-    expect(warnings.some(w => w.includes("原状态为 blocked"))).toBe(true);
+    expect(warnings.some((w) => w.includes("原状态为 blocked"))).toBe(true);
   });
   it("warns when node was already done", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard4-"));
     makeTinyProject(root);
     const { warnings } = markDone(root, "A-base", { note: "重复标记", date: "2026-09-22" });
-    expect(warnings.some(w => w.includes("此前已是 done"))).toBe(true);
+    expect(warnings.some((w) => w.includes("此前已是 done"))).toBe(true);
   });
 });
 
@@ -120,13 +135,17 @@ describe("listReady", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-ready-"));
     makeTinyProject(root);
     // B-app 依赖 A-base(done) → ready
-    expect(listReady(root).map(n => n.id)).toEqual(["B-app"]);
+    expect(listReady(root).map((n) => n.id)).toEqual(["B-app"]);
   });
   it("excludes planned nodes with unsatisfied deps", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-ready2-"));
     makeTinyProject(root);
-    fs.writeFileSync(path.join(root, "plan", "milestones", "A.md"),
-      fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8").replace("status: done", "status: in-progress"));
+    fs.writeFileSync(
+      path.join(root, "plan", "milestones", "A.md"),
+      fs
+        .readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8")
+        .replace("status: done", "status: in-progress"),
+    );
     expect(listReady(root)).toEqual([]);
   });
   it("uses sample project: M3 blocked by in-progress M2, nothing ready", async () => {
@@ -154,16 +173,17 @@ describe("blockNode / dropNode（旁路状态）", () => {
     blockNode(root, "B-app", { date: "2026-09-23" });
     const before = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
     const { warnings } = blockNode(root, "B-app", { date: "2026-09-24" });
-    expect(warnings.some(w => w.includes("已是 blocked"))).toBe(true);
+    expect(warnings.some((w) => w.includes("已是 blocked"))).toBe(true);
     expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toBe(before);
   });
   it("block on done node warns 复核 but proceeds", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-block3-"));
     makeTinyProject(root);
     const { warnings } = blockNode(root, "A-base", { date: "2026-09-23" });
-    expect(warnings.some(w => w.includes("已完成"))).toBe(true);
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8"))
-      .toMatch(/^status: blocked$/m);
+    expect(warnings.some((w) => w.includes("已完成"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8")).toMatch(
+      /^status: blocked$/m,
+    );
   });
   it("drop: in-progress → dropped with [dropped] note", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-drop-"));
@@ -197,8 +217,9 @@ describe("reopenNode（撤销旁路/完成）", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen2-"));
     makeTinyProject(root);
     reopenNode(root, "A-base", { planned: true });
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8"))
-      .toMatch(/^status: planned$/m);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "A.md"), "utf8")).toMatch(
+      /^status: planned$/m,
+    );
   });
   it("blocked → in-progress", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen3-"));
@@ -206,8 +227,9 @@ describe("reopenNode（撤销旁路/完成）", () => {
     blockNode(root, "B-app", { date: "2026-09-23" });
     const { warnings } = reopenNode(root, "B-app");
     expect(warnings).toEqual([]);
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8"))
-      .toMatch(/^status: in-progress$/m);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toMatch(
+      /^status: in-progress$/m,
+    );
   });
   it("on planned node throws（用 start 认领开工）", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-reopen4-"));
@@ -220,7 +242,7 @@ describe("reopenNode（撤销旁路/完成）", () => {
     startNode(root, "B-app");
     const before = fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8");
     const { warnings } = reopenNode(root, "B-app");
-    expect(warnings.some(w => w.includes("已是 in-progress"))).toBe(true);
+    expect(warnings.some((w) => w.includes("已是 in-progress"))).toBe(true);
     expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toBe(before);
   });
 });
@@ -237,7 +259,7 @@ describe("toggleAcceptance", () => {
       { done: true, text: "刷新令牌" },
     ]);
     // 全部勾选后提示可用 done 收尾
-    expect(r.warnings.some(w => w.includes("全部勾选"))).toBe(true);
+    expect(r.warnings.some((w) => w.includes("全部勾选"))).toBe(true);
     const text = fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8");
     expect(text).toContain("- [x] 密码登录");
     expect(text).toContain("- [x] 刷新令牌");
@@ -259,7 +281,7 @@ describe("toggleAcceptance", () => {
     // M1-core（done，两项全勾）取消第 1 项
     const r = toggleAcceptance(root, "M1-core", [1]);
     expect(r.acceptance[0].done).toBe(false);
-    expect(r.warnings.some(w => w.includes("复核"))).toBe(true);
+    expect(r.warnings.some((w) => w.includes("复核"))).toBe(true);
   });
 
   it("序号越界 / 空数组报错", async () => {

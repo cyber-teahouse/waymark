@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { simpleGit } from "simple-git";
-import { scoreGit, loadGitSnapshot } from "../src/infer/scoreGit.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadGitSnapshot, scoreGit } from "../src/infer/scoreGit.js";
 
 let repo: string;
 let plain: string;

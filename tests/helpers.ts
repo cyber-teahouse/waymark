@@ -9,25 +9,31 @@ export async function makeSampleProject(dest: string, withGit = false): Promise<
   fs.mkdirSync(path.join(dest, "src", "core"), { recursive: true });
   fs.mkdirSync(path.join(dest, "src", "auth"), { recursive: true });
 
-  fs.writeFileSync(path.join(dest, "plan", "overview.md"), `# 示例项目
+  fs.writeFileSync(
+    path.join(dest, "plan", "overview.md"),
+    `# 示例项目
 
 | id | 标题 | 迭代 |
 |----|------|------|
 | M1-core | 核心骨架 | I1 |
 | M2-auth | 认证模块 | I1 |
 | M3-login | 登录页面 | I1 |
-`);
+`,
+  );
 
-  fs.writeFileSync(path.join(dest, "plan", "iterations", "I1-mvp.md"),
-`---
+  fs.writeFileSync(
+    path.join(dest, "plan", "iterations", "I1-mvp.md"),
+    `---
 id: I1
 title: MVP
 goal: 跑通最小闭环
 ---
-`);
+`,
+  );
 
-  fs.writeFileSync(path.join(dest, "plan", "milestones", "M1-core.md"),
-`---
+  fs.writeFileSync(
+    path.join(dest, "plan", "milestones", "M1-core.md"),
+    `---
 id: M1-core
 title: 核心骨架
 type: milestone
@@ -48,10 +54,12 @@ acceptance:
 
 ## 完成记录
 - 2026-09-18 完成工程初始化与构建脚本
-`);
+`,
+  );
 
-  fs.writeFileSync(path.join(dest, "plan", "milestones", "M2-auth.md"),
-`---
+  fs.writeFileSync(
+    path.join(dest, "plan", "milestones", "M2-auth.md"),
+    `---
 id: M2-auth
 title: 认证模块
 type: milestone
@@ -71,10 +79,12 @@ acceptance:
 
 ## 完成记录
 - 2026-09-19 完成密码登录
-`);
+`,
+  );
 
-  fs.writeFileSync(path.join(dest, "plan", "milestones", "M3-登录.md"),
-`---
+  fs.writeFileSync(
+    path.join(dest, "plan", "milestones", "M3-登录.md"),
+    `---
 id: M3-login
 title: 登录页面
 type: task
@@ -86,7 +96,8 @@ acceptance: []
 
 ## 需求描述
 登录表单 UI。
-`);
+`,
+  );
 
   fs.writeFileSync(path.join(dest, "src", "core", "index.ts"), "export function coreInit(): void {}\n");
   fs.writeFileSync(path.join(dest, "src", "auth", "login.ts"), "export const strategy = 'password';\n");

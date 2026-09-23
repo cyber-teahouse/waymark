@@ -2,14 +2,28 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { getVersion } from "./version.js";
+import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 import { collectPlanIssues } from "./plan/check.js";
+import {
+  blockNode,
+  dropNode,
+  listReady,
+  markDone,
+  reopenNode,
+  startNode,
+  toggleAcceptance,
+} from "./plan/commands.js";
+import { statusReport } from "./plan/status.js";
+import {
+  loadBundle,
+  planNewerThan,
+  renderWorkflowHtml,
+  writeIndexHtml,
+  writeWorkflow,
+} from "./render/render.js";
 import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
-import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "./plan/commands.js";
-import { statusReport } from "./plan/status.js";
-import { gatherHubData, renderHubHtml } from "./hub/hub.js";
+import { getVersion } from "./version.js";
 
 /**
  * 创建一套全新的命令树。每次 runCli 调用都新建 program，
@@ -17,16 +31,18 @@ import { gatherHubData, renderHubHtml } from "./hub/hub.js";
  */
 export function createProgram(): Command {
   const program = new Command();
-  program.name("waymark").description("/plan 驱动的项目进度工作流可视化")
-    .version(getVersion()).option("--root <dir>", "项目根目录", process.cwd());
+  program
+    .name("waymark")
+    .description("/plan 驱动的项目进度工作流可视化")
+    .version(getVersion())
+    .option("--root <dir>", "项目根目录", process.cwd());
 
   /** 解析项目根：子命令后置 --root 优先，回退全局（前置）选项。 */
   const rootOf = (cmd: Command): string =>
     cmd.opts<{ root?: string }>().root ?? program.opts<{ root: string }>().root;
 
   /** 子命令统一挂载 --root（agent 习惯把 flag 放在子命令之后；commander 全局选项只认前置）。 */
-  const withRoot = (cmd: Command): Command =>
-    cmd.option("--root <dir>", "项目根目录（默认当前目录）");
+  const withRoot = (cmd: Command): Command => cmd.option("--root <dir>", "项目根目录（默认当前目录）");
 
   withRoot(program.command("check"))
     .description("校验 /plan 文档规范")
@@ -36,7 +52,7 @@ export function createProgram(): Command {
       for (const i of issues) {
         console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);
       }
-      const errors = issues.filter(i => i.level === "error").length;
+      const errors = issues.filter((i) => i.level === "error").length;
       if (errors > 0) {
         console.error(`✖ 校验失败: ${errors} 个错误`);
         process.exitCode = 1;
@@ -53,11 +69,13 @@ export function createProgram(): Command {
       writeWorkflow(root, workflow);
       const s = workflow.stats;
       console.log(`✔ workflow.json 已生成: ${path.join(root, ".waymark", "workflow.json")}`);
-      console.log(`节点 ${s.total} | 完成 ${s.done} | 进行中 ${s.inProgress} | 未开始 ${s.planned} | 警示 ${s.warnings}`);
+      console.log(
+        `节点 ${s.total} | 完成 ${s.done} | 进行中 ${s.inProgress} | 未开始 ${s.planned} | 警示 ${s.warnings}`,
+      );
       for (const i of issues) {
         console.log(`${i.level === "error" ? "✖" : "⚠"} [${i.level}] ${i.file}: ${i.message}`);
       }
-      if (issues.some(i => i.level === "error")) process.exitCode = 1;
+      if (issues.some((i) => i.level === "error")) process.exitCode = 1;
     });
 
   withRoot(program.command("start"))
@@ -87,7 +105,7 @@ export function createProgram(): Command {
         console.log(`✔ ${id} 已标记完成（${file}）`);
         for (const w of warnings) console.warn(`⚠ ${w}`);
         const issues = collectPlanIssues(root);
-        const errors = issues.filter(i => i.level === "error").length;
+        const errors = issues.filter((i) => i.level === "error").length;
         if (errors > 0) {
           console.warn(`⚠ 当前计划存在 ${errors} 个规范错误（waymark check 查看）`);
           process.exitCode = 1;
@@ -157,7 +175,9 @@ export function createProgram(): Command {
         const root = rootOf(cmd);
         const { file, warnings, acceptance } = toggleAcceptance(root, id, indices.map(Number));
         console.log(`✔ ${id} 验收已更新（${file}）`);
-        acceptance.forEach((a, i) => console.log(`  ${a.done ? "[x]" : "[ ]"} ${i + 1}. ${a.text}`));
+        acceptance.forEach((a, i) => {
+          console.log(`  ${a.done ? "[x]" : "[ ]"} ${i + 1}. ${a.text}`);
+        });
         for (const w of warnings) console.warn(`⚠ ${w}`);
       } catch (e) {
         console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
@@ -206,12 +226,12 @@ export function createProgram(): Command {
           try {
             const { workflow, issues } = await buildWorkflow(root);
             writeWorkflow(root, workflow);
-            if (issues.some(i => i.level === "error")) {
+            if (issues.some((i) => i.level === "error")) {
               console.warn("⚠ plan 存在规范错误（waymark check 查看），已按当前数据渲染");
             }
             console.log(missing ? "ℹ 未找到 workflow.json，已自动 sync" : "ℹ 数据已过期，已自动重新 sync");
           } catch (e) {
-            console.error(`✖ 自动 sync 失败: ${(e instanceof Error) ? e.message : String(e)}`);
+            console.error(`✖ 自动 sync 失败: ${e instanceof Error ? e.message : String(e)}`);
             process.exitCode = 1;
             return;
           }
@@ -220,7 +240,9 @@ export function createProgram(): Command {
           process.exitCode = 1;
           return;
         } else {
-          console.warn("⚠ plan/ 或证据目录在 sync 之后有改动，工作流数据可能过期——建议重新 waymark sync（或使用 --fresh）");
+          console.warn(
+            "⚠ plan/ 或证据目录在 sync 之后有改动，工作流数据可能过期——建议重新 waymark sync（或使用 --fresh）",
+          );
         }
       }
       try {
@@ -229,7 +251,7 @@ export function createProgram(): Command {
         writeIndexHtml(root, html);
         console.log(`✔ 已生成 ${path.join(root, ".waymark", "index.html")}（可直接用浏览器打开）`);
       } catch (e) {
-        console.error(`✖ ${(e instanceof Error) ? e.message : String(e)}`);
+        console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
         process.exitCode = 1;
       }
     });
@@ -241,7 +263,7 @@ export function createProgram(): Command {
       const root = rootOf(cmd);
       const port = Number(opts.port);
       if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-        console.error("✖ 端口无效: " + opts.port);
+        console.error(`✖ 端口无效: ${opts.port}`);
         process.exitCode = 1;
         return;
       }
@@ -276,7 +298,7 @@ export function createProgram(): Command {
         const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
         fs.mkdirSync(path.dirname(outFile), { recursive: true });
         fs.writeFileSync(outFile, renderHubHtml(entries, new Date().toISOString()), "utf8");
-        const synced = entries.filter(e => e.found).length;
+        const synced = entries.filter((e) => e.found).length;
         console.log(`✔ hub 总览已生成: ${outFile}`);
         console.log(`项目 ${entries.length} | 已同步 ${synced} | 未同步 ${entries.length - synced}`);
         for (const e of entries) {

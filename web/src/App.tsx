@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkflowJson, WorkflowNode } from "../../src/types";
-import FlowView from "./FlowView";
 import DetailPanel from "./DetailPanel";
+import FlowView from "./FlowView";
 
 declare global {
-  interface Window { __WAYMARK_DATA__?: WorkflowJson }
+  interface Window {
+    __WAYMARK_DATA__?: WorkflowJson;
+  }
 }
 
 /** 进度环：轨道 var(--line)，进度弧 var(--accent)，加载时 400ms 画出（respect prefers-reduced-motion）。 */
@@ -18,16 +20,27 @@ function ProgressRing({ percent }: { percent: number }) {
   const C = 2 * Math.PI * R;
   const arc = (Math.max(0, Math.min(100, percent)) / 100) * C;
   return (
-    <svg className="ring" width="46" height="46" viewBox="0 0 46 46" role="img" aria-label={`总进度 ${percent}%`}>
+    <svg
+      className="ring"
+      width="46"
+      height="46"
+      viewBox="0 0 46 46"
+      role="img"
+      aria-label={`总进度 ${percent}%`}
+    >
       <circle className="ring-track" cx="23" cy="23" r={R} />
       <circle
         className="ring-arc"
-        cx="23" cy="23" r={R}
+        cx="23"
+        cy="23"
+        r={R}
         transform="rotate(-90 23 23)"
         strokeDasharray={`${arc} ${C}`}
         strokeDashoffset={drawn ? 0 : arc}
       />
-      <text className="ring-num" x="23" y="23">{percent}</text>
+      <text className="ring-num" x="23" y="23">
+        {percent}
+      </text>
     </svg>
   );
 }
@@ -37,8 +50,14 @@ function EmptyState() {
     <div className="empty">
       <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true">
         <circle
-          cx="36" cy="36" r="26" fill="none"
-          stroke="#C9BC9C" strokeWidth="3" strokeLinecap="round" strokeDasharray="5.5 8"
+          cx="36"
+          cy="36"
+          r="26"
+          fill="none"
+          stroke="#C9BC9C"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="5.5 8"
         />
       </svg>
       <div className="empty-title">还没有工作流数据</div>
@@ -63,7 +82,12 @@ function relTime(iso: string): string | null {
 
 const STALE_DAYS = 7;
 
-interface HashState { tab: string | null; node: string | null; q: string; st: string | null }
+interface HashState {
+  tab: string | null;
+  node: string | null;
+  q: string;
+  st: string | null;
+}
 
 function parseHash(): HashState {
   const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -73,16 +97,16 @@ function parseHash(): HashState {
 /** 依赖层数：最长路径深度（环上节点按已访问深度计）。 */
 function countLayers(nodes: WorkflowNode[], edges: { from: string; to: string }[]): number {
   if (nodes.length === 0) return 0;
-  const ids = new Set(nodes.map(n => n.id));
-  const depth = new Map(nodes.map(n => [n.id, 0]));
-  const indeg = new Map(nodes.map(n => [n.id, 0]));
-  const dependents = new Map<string, string[]>(nodes.map(n => [n.id, []]));
+  const ids = new Set(nodes.map((n) => n.id));
+  const depth = new Map(nodes.map((n) => [n.id, 0]));
+  const indeg = new Map(nodes.map((n) => [n.id, 0]));
+  const dependents = new Map<string, string[]>(nodes.map((n) => [n.id, []]));
   for (const e of edges) {
     if (!ids.has(e.from) || !ids.has(e.to)) continue;
     indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
     dependents.get(e.from)!.push(e.to);
   }
-  const queue = nodes.filter(n => indeg.get(n.id) === 0).map(n => n.id);
+  const queue = nodes.filter((n) => indeg.get(n.id) === 0).map((n) => n.id);
   let maxDepth = 0;
   while (queue.length) {
     const id = queue.shift()!;
@@ -98,11 +122,42 @@ function countLayers(nodes: WorkflowNode[], edges: { from: string; to: string }[
   return maxDepth + 1;
 }
 
-interface ChipDef { key: string; label: string; st: string; count: number }
+interface ChipDef {
+  key: string;
+  label: string;
+  st: string;
+  count: number;
+}
 
 export default function App() {
   // 工作流数据状态化：ui 模式下由 SSE workflow 帧原位更新（不整页刷新，保留画布视口）
   const [wf, setWf] = useState<WorkflowJson | undefined>(() => window.__WAYMARK_DATA__);
+
+  // 热更新：监听 ui 服务的 workflow 帧，原位替换数据；帧异常时回退整页刷新。
+  // file:// 静态打开时无服务可连，直接跳过。
+  useEffect(() => {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    const es = new EventSource("/events");
+    es.addEventListener("workflow", (ev) => {
+      try {
+        const data = JSON.parse((ev as MessageEvent).data) as WorkflowJson;
+        window.__WAYMARK_DATA__ = data;
+        setWf(data);
+      } catch {
+        window.location.reload();
+      }
+    });
+    return () => es.close();
+  }, []);
+
+  // 无数据时不渲染 Main——保证 Main 内全部 hooks 无条件执行（useHookAtTopLevel）
+  if (!wf) {
+    return <EmptyState />;
+  }
+  return <Main wf={wf} />;
+}
+
+function Main({ wf }: { wf: WorkflowJson }) {
   const initial = useMemo(parseHash, []);
   const [tab, setTab] = useState<string>(initial.tab ?? "__all__");
   const [selected, setSelected] = useState<string | null>(initial.node);
@@ -134,50 +189,32 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // 热更新：监听 ui 服务的 workflow 帧，原位替换数据；帧异常时回退整页刷新。
-  // file:// 静态打开时无服务可连，直接跳过。
-  useEffect(() => {
-    if (location.protocol !== "http:" && location.protocol !== "https:") return;
-    const es = new EventSource("/events");
-    es.addEventListener("workflow", (ev) => {
-      try {
-        const data = JSON.parse((ev as MessageEvent).data) as WorkflowJson;
-        window.__WAYMARK_DATA__ = data;
-        setWf(data);
-      } catch {
-        window.location.reload();
-      }
-    });
-    return () => es.close();
-  }, []);
-
-  if (!wf) {
-    return <EmptyState />;
-  }
-
   // 迭代 scope（统计按 scope 联动；筛选只作用于画布）
-  const scopeNodes: WorkflowNode[] = wf.nodes.filter(n => tab === "__all__" || n.iteration === tab);
+  const scopeNodes: WorkflowNode[] = wf.nodes.filter((n) => tab === "__all__" || n.iteration === tab);
   const scopeStats = {
     total: scopeNodes.length,
-    done: scopeNodes.filter(n => n.displayStatus === "done").length,
-    inProgress: scopeNodes.filter(n => n.displayStatus === "in-progress").length,
-    planned: scopeNodes.filter(n => n.displayStatus === "planned").length,
-    blocked: scopeNodes.filter(n => n.displayStatus === "blocked").length,
-    warnings: scopeNodes.filter(n => n.warning !== null).length,
+    done: scopeNodes.filter((n) => n.displayStatus === "done").length,
+    inProgress: scopeNodes.filter((n) => n.displayStatus === "in-progress").length,
+    planned: scopeNodes.filter((n) => n.displayStatus === "planned").length,
+    blocked: scopeNodes.filter((n) => n.displayStatus === "blocked").length,
+    warnings: scopeNodes.filter((n) => n.warning !== null).length,
   };
   const percent = scopeStats.total > 0 ? Math.round((scopeStats.done / scopeStats.total) * 100) : 0;
 
   const q = query.trim().toLowerCase();
-  const visible: WorkflowNode[] = scopeNodes.filter(n =>
-    (!statusFilter || n.displayStatus === statusFilter) &&
-    (!q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)),
+  const visible: WorkflowNode[] = scopeNodes.filter(
+    (n) =>
+      (!statusFilter || n.displayStatus === statusFilter) &&
+      (!q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)),
   );
-  const visibleIds = new Set(visible.map(n => n.id));
-  const edges = wf.edges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
+  const visibleIds = new Set(visible.map((n) => n.id));
+  const edges = wf.edges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to));
 
   // 旅程顺序由 FlowView 布局后回报（ref 避免不必要的重渲染）
   const trailRef = useRef<string[]>([]);
-  const onTrailChange = useCallback((ids: string[]) => { trailRef.current = ids; }, []);
+  const onTrailChange = useCallback((ids: string[]) => {
+    trailRef.current = ids;
+  }, []);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // 键盘导航：j/k 或 ↑/↓ 沿步道移动选中；Enter/Shift+Enter 在搜索匹配间跳转；/ 聚焦搜索；Esc 关闭/退出
@@ -188,21 +225,29 @@ export default function App() {
       const trail = trailRef.current;
 
       if (e.key === "Escape") {
-        if (inField) { (t as HTMLInputElement).blur(); return; }
-        setSelected(cur => { if (cur) e.preventDefault(); return null; });
+        if (inField) {
+          (t as HTMLInputElement).blur();
+          return;
+        }
+        setSelected((cur) => {
+          if (cur) e.preventDefault();
+          return null;
+        });
         return;
       }
       if (inField) {
         // 搜索框内：Enter 在匹配间循环跳转（按步道顺序）
         if (e.key === "Enter" && trail.length > 0) {
-          const matches = trail.filter(id => visibleIds.has(id));
+          const matches = trail.filter((id) => visibleIds.has(id));
           if (matches.length === 0) return;
           const cur = trailRef.current.indexOf(selected ?? "");
-          const from = cur < 0 ? (e.shiftKey ? matches.length - 1 : 0)
-            : matches.indexOf(trail[cur]);
-          const next = from < 0
-            ? (e.shiftKey ? matches[matches.length - 1] : matches[0])
-            : matches[(from + (e.shiftKey ? -1 : 1) + matches.length) % matches.length];
+          const from = cur < 0 ? (e.shiftKey ? matches.length - 1 : 0) : matches.indexOf(trail[cur]);
+          const next =
+            from < 0
+              ? e.shiftKey
+                ? matches[matches.length - 1]
+                : matches[0]
+              : matches[(from + (e.shiftKey ? -1 : 1) + matches.length) % matches.length];
           setSelected(next);
           e.preventDefault();
         }
@@ -213,13 +258,15 @@ export default function App() {
         e.preventDefault();
         return;
       }
-      const step = e.key === "j" || e.key === "ArrowDown" ? 1
-        : e.key === "k" || e.key === "ArrowUp" ? -1 : 0;
+      const step = e.key === "j" || e.key === "ArrowDown" ? 1 : e.key === "k" || e.key === "ArrowUp" ? -1 : 0;
       if (step !== 0 && trail.length > 0) {
         const cur = selected ? trail.indexOf(selected) : -1;
-        const next = cur < 0
-          ? (step > 0 ? trail[0] : trail[trail.length - 1])
-          : trail[(cur + step + trail.length) % trail.length];
+        const next =
+          cur < 0
+            ? step > 0
+              ? trail[0]
+              : trail[trail.length - 1]
+            : trail[(cur + step + trail.length) % trail.length];
         setSelected(next);
         e.preventDefault();
       }
@@ -228,24 +275,32 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, visibleIds]);
 
-  const node = wf.nodes.find(n => n.id === selected) ?? null;
-  const errors = (wf.issues ?? []).filter(i => i.level === "error");
+  const node = wf.nodes.find((n) => n.id === selected) ?? null;
+  const errors = (wf.issues ?? []).filter((i) => i.level === "error");
   const layers = countLayers(wf.nodes, wf.edges);
-  const related = node ? {
-    upstream: wf.nodes.filter(n => node.deps.includes(n.id)),
-    downstream: wf.nodes.filter(n => n.deps.includes(node.id)),
-  } : null;
+  const related = node
+    ? {
+        upstream: wf.nodes.filter((n) => node.deps.includes(n.id)),
+        downstream: wf.nodes.filter((n) => n.deps.includes(node.id)),
+      }
+    : null;
 
   const genText = relTime(wf.generatedAt);
   const staleDays = Math.floor((Date.now() - new Date(wf.generatedAt).getTime()) / 86400000);
-  const firstWarning = scopeNodes.find(n => n.warning !== null);
+  const firstWarning = scopeNodes.find((n) => n.warning !== null);
 
   // 可开工：planned 且依赖全部 done/dropped（缺失的依赖视为满足，与 CLI ready 口径一致）
-  const scopeIds = new Set(scopeNodes.map(n => n.id));
-  const satisfied = new Set(scopeNodes.filter(n => n.displayStatus === "done" || n.displayStatus === "dropped").map(n => n.id));
-  const readyIds = new Set(scopeNodes
-    .filter(n => n.displayStatus === "planned" && n.deps.every(d => satisfied.has(d) || !scopeIds.has(d)))
-    .map(n => n.id));
+  const scopeIds = new Set(scopeNodes.map((n) => n.id));
+  const satisfied = new Set(
+    scopeNodes.filter((n) => n.displayStatus === "done" || n.displayStatus === "dropped").map((n) => n.id),
+  );
+  const readyIds = new Set(
+    scopeNodes
+      .filter(
+        (n) => n.displayStatus === "planned" && n.deps.every((d) => satisfied.has(d) || !scopeIds.has(d)),
+      )
+      .map((n) => n.id),
+  );
 
   const chips: ChipDef[] = [
     { key: "done", label: "完成", st: "st-done", count: scopeStats.done },
@@ -256,7 +311,7 @@ export default function App() {
       : []),
   ];
 
-  const toggleStatus = (st: string) => setStatusFilter(cur => (cur === st ? null : st));
+  const toggleStatus = (st: string) => setStatusFilter((cur) => (cur === st ? null : st));
 
   return (
     <main className="app">
@@ -280,9 +335,12 @@ export default function App() {
             </h1>
             <div className="brand-line2">
               {scopeStats.done} / {scopeStats.total} 完成
-              <span className="brand-sep">·</span>{wf.stats.total} 节点
-              <span className="brand-sep">·</span>{wf.edges.length} 依赖
-              <span className="brand-sep">·</span>{layers} 层
+              <span className="brand-sep">·</span>
+              {wf.stats.total} 节点
+              <span className="brand-sep">·</span>
+              {wf.edges.length} 依赖
+              <span className="brand-sep">·</span>
+              {layers} 层
               {genText && (
                 <>
                   <span className="brand-sep">·</span>生成于 {genText}
@@ -292,7 +350,7 @@ export default function App() {
           </div>
         </div>
         <div className="chips">
-          {chips.map(c => (
+          {chips.map((c) => (
             <button
               key={c.key}
               type="button"
@@ -327,7 +385,7 @@ export default function App() {
             placeholder="搜索节点…（/ 聚焦，Enter 跳转匹配）"
             aria-label="搜索节点"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
           />
           {q && (
             <span className="search-count" aria-live="polite">
@@ -336,11 +394,16 @@ export default function App() {
           )}
         </div>
         <nav className="segments">
-          <button className={tab === "__all__" ? "segment active" : "segment"} onClick={() => setTab("__all__")}>
+          <button
+            type="button"
+            className={tab === "__all__" ? "segment active" : "segment"}
+            onClick={() => setTab("__all__")}
+          >
             全部
           </button>
-          {wf.iterations.map(it => (
+          {wf.iterations.map((it) => (
             <button
+              type="button"
               key={it.id}
               className={tab === it.id ? "segment active" : "segment"}
               title={[it.goal, it.window].filter(Boolean).join(" · ")}
@@ -352,7 +415,15 @@ export default function App() {
         </nav>
       </header>
       <div className="flow-wrap">
-        <FlowView nodes={visible} edges={edges} iterations={wf.iterations} selectedId={selected} readyIds={readyIds} onSelect={setSelected} onTrailChange={onTrailChange} />
+        <FlowView
+          nodes={visible}
+          edges={edges}
+          iterations={wf.iterations}
+          selectedId={selected}
+          readyIds={readyIds}
+          onSelect={setSelected}
+          onTrailChange={onTrailChange}
+        />
         {visible.length === 0 && (
           <div className="flow-empty">
             没有匹配的节点
@@ -360,7 +431,10 @@ export default function App() {
               <button
                 type="button"
                 className="flow-empty-clear"
-                onClick={() => { setStatusFilter(null); setQuery(""); }}
+                onClick={() => {
+                  setStatusFilter(null);
+                  setQuery("");
+                }}
               >
                 清除筛选
               </button>

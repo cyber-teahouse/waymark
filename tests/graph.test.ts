@@ -1,15 +1,20 @@
-import { describe, it, expect } from "vitest";
-import type { PlanDoc } from "../src/types.js";
+import { describe, expect, it } from "vitest";
 import { buildGraph } from "../src/graph/buildGraph.js";
+import type { PlanDoc } from "../src/types.js";
 
 function doc(id: string, deps: string[] = []): PlanDoc {
   return {
     file: `plan/milestones/${id}.md`,
     fm: {
-      id, title: id, type: "task", status: "planned", deps,
+      id,
+      title: id,
+      type: "task",
+      status: "planned",
+      deps,
       acceptance: [],
     },
-    description: "", completionLog: [],
+    description: "",
+    completionLog: [],
   };
 }
 

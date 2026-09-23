@@ -1,16 +1,27 @@
-import React, { useEffect, useMemo } from "react";
 import {
-  ReactFlow, Controls, MarkerType, Handle, Position, Panel,
-  type Node, type Edge, type NodeProps, type EdgeProps,
+  Controls,
+  type Edge,
+  type EdgeProps,
+  Handle,
+  MarkerType,
+  type Node,
+  type NodeProps,
+  Panel,
+  Position,
+  ReactFlow,
 } from "@xyflow/react";
+import { useEffect, useMemo } from "react";
 import type { WorkflowNode } from "../../src/types";
 
 export const STATUS_LABEL: Record<string, string> = {
-  planned: "未开始", "in-progress": "进行中", done: "已完成", blocked: "受阻", dropped: "已放弃",
+  planned: "未开始",
+  "in-progress": "进行中",
+  done: "已完成",
+  blocked: "受阻",
+  dropped: "已放弃",
 };
 
 const NODE_W = 204;
-const NODE_H = 152;
 const EDGE_COLOR = "#8A7B5C";
 const EDGE_HIT = "#B04A24";
 
@@ -23,13 +34,17 @@ interface PlanNodeData extends Record<string, unknown> {
 
 /** 路标图钉：状态决定形态（实心=已走、脉冲=当前、空心=未走）。 */
 const STATUS_GLYPH: Record<string, string> = {
-  done: "✓", "in-progress": "●", planned: "○", blocked: "▲", dropped: "✕",
+  done: "✓",
+  "in-progress": "●",
+  planned: "○",
+  blocked: "▲",
+  dropped: "✕",
 };
 
 function PlanNode({ data, selected }: NodeProps) {
   const { wf, ready, rank, onSelect } = data as PlanNodeData;
   const accTotal = wf.acceptance.length;
-  const accDone = wf.acceptance.filter(a => a.done).length;
+  const accDone = wf.acceptance.filter((a) => a.done).length;
   const depCount = wf.deps.length;
   const aria = [
     wf.title,
@@ -38,14 +53,14 @@ function PlanNode({ data, selected }: NodeProps) {
     accTotal > 0 ? `验收 ${accDone}/${accTotal}` : null,
     depCount > 0 ? `依赖 ${depCount} 项` : null,
     "按 Enter 查看详情",
-  ].filter(Boolean).join("，");
-  const cls = [
-    "wp",
-    `st-${wf.displayStatus}`,
-    wf.cycle ? "cycle" : "",
-    selected ? "selected" : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join("，");
+  const cls = ["wp", `st-${wf.displayStatus}`, wf.cycle ? "cycle" : "", selected ? "selected" : ""]
+    .filter(Boolean)
+    .join(" ");
   return (
+    // biome-ignore lint/a11y/useSemanticElements: DAG 画布节点内含复杂子结构（Handle/徽章/多行文本），原生 button 会破坏 xyflow 布局；已带 tabIndex 与键盘处理
     <div
       className={cls}
       role="button"
@@ -53,7 +68,7 @@ function PlanNode({ data, selected }: NodeProps) {
       aria-label={aria}
       style={{ animationDelay: `${Math.min(rank, 12) * 90}ms` }}
       onClick={() => onSelect(wf.id)}
-      onKeyDown={e => {
+      onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect(wf.id);
@@ -71,14 +86,18 @@ function PlanNode({ data, selected }: NodeProps) {
             {wf.type === "milestone" ? "◆" : "◇"}
           </span>
         </span>
-        <span className="wp-title" title={wf.title}>{wf.title}</span>
+        <span className="wp-title" title={wf.title}>
+          {wf.title}
+        </span>
         <span className="wp-meta">
           {accTotal > 0 && (
             <>
               <span className="acc-track" aria-hidden="true">
                 <span className="acc-fill" style={{ width: `${Math.round((accDone / accTotal) * 100)}%` }} />
               </span>
-              <span className="acc-nums">{accDone}/{accTotal}</span>
+              <span className="acc-nums">
+                {accDone}/{accTotal}
+              </span>
             </>
           )}
           {ready && <span className="node-chip ready">可开工</span>}
@@ -100,7 +119,7 @@ function CampDecor({ data }: NodeProps) {
   const { label } = data as { label: string };
   return (
     <div className="camp" aria-hidden="true">
-      <svg width="12" height="14" viewBox="0 0 12 14">
+      <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
         <path d="M1,13 V1 M1,1 L11,3.5 L1,6 Z" className="camp-flag" />
       </svg>
       <span>{label}</span>
@@ -115,23 +134,25 @@ function Compass() {
       <circle cx="30" cy="32" r="24" className="compass-ring" />
       <circle cx="30" cy="32" r="2" className="compass-dot" />
       <path d="M30,12 L34,32 L30,52 L26,32 Z" className="compass-needle" />
-      <text x="30" y="10" className="compass-n">N</text>
+      <text x="30" y="10" className="compass-n">
+        N
+      </text>
     </svg>
   );
 }
 
 /** 最长路径分层：依赖必然从浅层指向深层（DAG 保证严格递增）。 */
 function computeRanks(nodes: WorkflowNode[], edges: { from: string; to: string }[]): Map<string, number> {
-  const ids = new Set(nodes.map(n => n.id));
-  const depth = new Map(nodes.map(n => [n.id, 0]));
-  const indeg = new Map(nodes.map(n => [n.id, 0]));
-  const dependents = new Map<string, string[]>(nodes.map(n => [n.id, []]));
+  const ids = new Set(nodes.map((n) => n.id));
+  const depth = new Map(nodes.map((n) => [n.id, 0]));
+  const indeg = new Map(nodes.map((n) => [n.id, 0]));
+  const dependents = new Map<string, string[]>(nodes.map((n) => [n.id, []]));
   for (const e of edges) {
     if (!ids.has(e.from) || !ids.has(e.to)) continue;
     indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
     dependents.get(e.from)!.push(e.to);
   }
-  const queue = nodes.filter(n => (indeg.get(n.id) ?? 0) === 0).map(n => n.id);
+  const queue = nodes.filter((n) => (indeg.get(n.id) ?? 0) === 0).map((n) => n.id);
   while (queue.length) {
     const id = queue.shift()!;
     const d = depth.get(id) ?? 0;
@@ -152,29 +173,40 @@ function computeRanks(nodes: WorkflowNode[], edges: { from: string; to: string }
  * 主亲枝 = 步道（旅程顺序），跨枝依赖退化为淡色虚线；
  * 迭代分界处立营地旗标，角落配罗盘装饰。
  */
-const MM_X0 = 240;        // 根节点钉心 x
-const MM_LEVEL = 380;     // 层间距（枝条长度：卡缘间隙 176 + 卡宽 204）
-const MM_LEAF_GAP = 176;  // 叶子垂直间距（≥ NODE_H + 呼吸）
+const MM_X0 = 240; // 根节点钉心 x
+const MM_LEVEL = 380; // 层间距（枝条长度：卡缘间隙 176 + 卡宽 204）
+const MM_LEAF_GAP = 176; // 叶子垂直间距（≥ 节点高 + 呼吸）
 
 /** 选主亲：依赖层最浅者（并列取 id 小者），保证主亲图是严格树。 */
-function primaryParents(nodes: WorkflowNode[], edges: { from: string; to: string }[], ranks: Map<string, number>) {
-  const ids = new Set(nodes.map(n => n.id));
+function primaryParents(
+  nodes: WorkflowNode[],
+  edges: { from: string; to: string }[],
+  ranks: Map<string, number>,
+) {
+  const ids = new Set(nodes.map((n) => n.id));
   const parent = new Map<string, string>();
   const candidates: { from: string; to: string }[] = [];
   for (const e of edges) {
     if (!ids.has(e.from) || !ids.has(e.to)) continue;
     candidates.push(e);
     const cur = parent.get(e.to);
-    const better = cur === undefined
-      || (ranks.get(e.from) ?? 0) < (ranks.get(cur) ?? 0)
-      || ((ranks.get(e.from) ?? 0) === (ranks.get(cur) ?? 0) && e.from < cur);
+    const better =
+      cur === undefined ||
+      (ranks.get(e.from) ?? 0) < (ranks.get(cur) ?? 0) ||
+      ((ranks.get(e.from) ?? 0) === (ranks.get(cur) ?? 0) && e.from < cur);
     if (better) parent.set(e.to, e.from);
   }
   return { parent, candidates };
 }
 
-function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], iterations: { id: string; title: string }[]): {
-  nodes: Node[]; edges: Edge[]; trailIds: string[];
+function layout(
+  nodes: WorkflowNode[],
+  edges: { from: string; to: string }[],
+  iterations: { id: string; title: string }[],
+): {
+  nodes: Node[];
+  edges: Edge[];
+  trailIds: string[];
 } {
   const ranks = computeRanks(nodes, edges);
   const { parent, candidates } = primaryParents(nodes, edges, ranks);
@@ -183,17 +215,17 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
 
   // 主亲树的孩子表（按迭代+id 排序，保证旅程顺序稳定）
   const children = new Map<string, WorkflowNode[]>();
-  const isRoot = new Set(nodes.map(n => n.id));
+  const isRoot = new Set(nodes.map((n) => n.id));
   for (const [to, from] of parent) {
     isRoot.delete(to);
-    const f = nodes.find(n => n.id === from);
-    const t = nodes.find(n => n.id === to);
+    const f = nodes.find((n) => n.id === from);
+    const t = nodes.find((n) => n.id === to);
     if (!f || !t) continue;
     if (!children.has(from)) children.set(from, []);
     children.get(from)!.push(t);
   }
   for (const list of children.values()) list.sort(iterId);
-  const roots = nodes.filter(n => isRoot.has(n.id)).sort(iterId);
+  const roots = nodes.filter((n) => isRoot.has(n.id)).sort(iterId);
 
   // DFS 层叠布局：叶子依次占一道，父节点居中于子树
   const pos = new Map<string, { x: number; y: number }>();
@@ -213,7 +245,9 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
     const y = ((first + leafCursor - 1) / 2) * MM_LEAF_GAP;
     pos.set(n.id, { x: MM_X0 + depth * MM_LEVEL, y });
   };
-  roots.forEach(r => dfs(r, 0));
+  roots.forEach((r) => {
+    dfs(r, 0);
+  });
   // 无依赖也无被依赖的孤立节点：当作根补排
   for (const n of nodes) if (!pos.has(n.id)) dfs(n, 0);
 
@@ -227,7 +261,7 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
     if (i === 0) return;
     const p = pos.get(n.id);
     if (!p) return;
-    const title = iterations.find(it => it.id === iterKey)?.title ?? iterKey;
+    const title = iterations.find((it) => it.id === iterKey)?.title ?? iterKey;
     campNodes.push({
       id: `camp-${iterKey}`,
       type: "camp",
@@ -238,7 +272,7 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
     });
   });
 
-  const rfNodes: Node[] = nodes.map(n => {
+  const rfNodes: Node[] = nodes.map((n) => {
     const p = pos.get(n.id) ?? { x: MM_X0, y: 0 };
     return {
       id: n.id,
@@ -254,10 +288,10 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
   // 步道 = 主亲枝（DFS 顺序）；走过与否看父节点是否已到达
   const trailEdges: Edge[] = [];
   for (const [to, from] of parent) {
-    const fi = trail.findIndex(n => n.id === from);
-    const ti = trail.findIndex(n => n.id === to);
+    const fi = trail.findIndex((n) => n.id === from);
+    const ti = trail.findIndex((n) => n.id === to);
     if (fi < 0 || ti < 0) continue;
-    const f = nodes.find(n => n.id === from)!;
+    const f = nodes.find((n) => n.id === from)!;
     trailEdges.push({
       id: `trail-${from}-${to}`,
       source: from,
@@ -267,20 +301,26 @@ function layout(nodes: WorkflowNode[], edges: { from: string; to: string }[], it
       data: { trail: true, walked: reached(f.displayStatus) },
     });
   }
-  trailEdges.sort((a, b) => trail.findIndex(n => n.id === a.source) - trail.findIndex(n => n.id === b.source));
+  trailEdges.sort(
+    (a, b) => trail.findIndex((n) => n.id === a.source) - trail.findIndex((n) => n.id === b.source),
+  );
 
   // 跨枝依赖：淡色虚线，退为背景纹理
   const primary = new Set([...parent.entries()].map(([to, from]) => `${from}->${to}`));
   const rfEdges: Edge[] = candidates
-    .filter(e => !primary.has(`${e.from}->${e.to}`))
-    .map(e => ({
+    .filter((e) => !primary.has(`${e.from}->${e.to}`))
+    .map((e) => ({
       id: `${e.from}->${e.to}`,
       source: e.from,
       target: e.to,
       style: { stroke: EDGE_COLOR, strokeWidth: 1.4, opacity: 0.55, strokeDasharray: "5 5" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 11, height: 11, color: EDGE_COLOR },
     }));
-  return { nodes: [...campNodes, ...rfNodes], edges: [...trailEdges, ...rfEdges], trailIds: trail.map(n => n.id) };
+  return {
+    nodes: [...campNodes, ...rfNodes],
+    edges: [...trailEdges, ...rfEdges],
+    trailIds: trail.map((n) => n.id),
+  };
 }
 
 /** 步道线（思维导图枝条）：已行走 = 橙色实线（纸色 halo 衬底），
@@ -301,26 +341,41 @@ const edgeTypes = { trail: TrailEdge };
 
 function Legend() {
   const items: [string, string][] = [
-    ["done", "已完成"], ["in-progress", "进行中"], ["planned", "未开始"],
-    ["blocked", "受阻"], ["warn", "警示"],
+    ["done", "已完成"],
+    ["in-progress", "进行中"],
+    ["planned", "未开始"],
+    ["blocked", "受阻"],
+    ["warn", "警示"],
   ];
   return (
     <Panel position="top-right">
       <div className="legend" aria-hidden="true">
         {items.map(([st, label]) => (
           <span key={st} className={`legend-item st-${st}`}>
-            <i className="legend-dot" />{label}
+            <i className="legend-dot" />
+            {label}
           </span>
         ))}
         <span className="legend-item">◆ 里程碑</span>
         <span className="legend-item">◇ 任务</span>
-        <span className="legend-item"><i className="legend-trail" />步道</span>
+        <span className="legend-item">
+          <i className="legend-trail" />
+          步道
+        </span>
       </div>
     </Panel>
   );
 }
 
-export default function FlowView({ nodes, edges, iterations, selectedId, readyIds, onSelect, onTrailChange }: {
+export default function FlowView({
+  nodes,
+  edges,
+  iterations,
+  selectedId,
+  readyIds,
+  onSelect,
+  onTrailChange,
+}: {
   nodes: WorkflowNode[];
   edges: { from: string; to: string }[];
   iterations: { id: string; title: string }[];
@@ -330,10 +385,14 @@ export default function FlowView({ nodes, edges, iterations, selectedId, readyId
   /** 布局完成后回报旅程顺序（步道键盘导航用） */
   onTrailChange?: (trailIds: string[]) => void;
 }) {
-  const { nodes: rfNodes, edges: rfEdges, trailIds } = useMemo(() => {
+  const {
+    nodes: rfNodes,
+    edges: rfEdges,
+    trailIds,
+  } = useMemo(() => {
     const laid = layout(nodes, edges, iterations);
     // 依赖高亮：选中节点的出入边加强，其余淡化；步道线恒常显示
-    const styled = laid.edges.map(e => {
+    const styled = laid.edges.map((e) => {
       if ((e.data as { trail?: boolean } | undefined)?.trail) return e;
       const connected = selectedId !== null && (e.source === selectedId || e.target === selectedId);
       return {
@@ -343,11 +402,16 @@ export default function FlowView({ nodes, edges, iterations, selectedId, readyId
           strokeWidth: connected ? 2.25 : 1.75,
           opacity: selectedId === null || connected ? 1 : 0.3,
         },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: connected ? EDGE_HIT : EDGE_COLOR },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 15,
+          height: 15,
+          color: connected ? EDGE_HIT : EDGE_COLOR,
+        },
       } as Edge;
     });
     // 把 onSelect/ready 注入节点数据（键盘/点击都能打开详情）
-    const withSelect = laid.nodes.map(n => ({
+    const withSelect = laid.nodes.map((n) => ({
       ...n,
       data: { ...n.data, ready: readyIds.has(n.id), onSelect } as Record<string, unknown>,
     }));

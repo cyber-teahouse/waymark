@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { beforeAll, describe, expect, it } from "vitest";
 import { scorePaths, scoreTests } from "../src/infer/scorePaths.js";
+import { makeSampleProject } from "./helpers.js";
 
 let root: string;
 beforeAll(async () => {

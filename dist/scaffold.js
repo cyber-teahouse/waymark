@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { OVERVIEW_MD, ITERATION_MD, NODE_MD } from "./init/templates.js";
+import { ITERATION_MD, NODE_MD, OVERVIEW_MD } from "./init/templates.js";
 const GITIGNORE_LINE = ".waymark/workflow.json";
 export function runInit(root) {
     const planDir = path.join(root, "plan");

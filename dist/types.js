@@ -35,7 +35,10 @@ export const WorkflowNodeSchema = z.object({
     confidence: z.number(),
     evidenceReport: z.array(z.object({
         kind: z.enum(["paths", "grep", "tests", "git"]),
-        ok: z.boolean(), score: z.number(), detail: z.string(), skipped: z.boolean().optional(),
+        ok: z.boolean(),
+        score: z.number(),
+        detail: z.string(),
+        skipped: z.boolean().optional(),
     })),
     acceptance: z.array(z.object({ text: z.string(), done: z.boolean() })),
     completionLog: z.array(z.object({ date: z.string(), text: z.string() })),
@@ -52,22 +55,48 @@ export const WorkflowJsonSchema = z.object({
     nodes: z.array(WorkflowNodeSchema),
     edges: z.array(z.object({ from: z.string(), to: z.string() })),
     iterations: z.array(z.object({
-        id: z.string(), title: z.string(),
-        goal: z.string().optional(), window: z.string().optional(),
+        id: z.string(),
+        title: z.string(),
+        goal: z.string().optional(),
+        window: z.string().optional(),
         nodeIds: z.array(z.string()),
     })),
-    issues: z.array(z.object({
-        level: z.enum(["error", "warning"]), file: z.string(), message: z.string(),
-    })).optional(),
+    issues: z
+        .array(z.object({
+        level: z.enum(["error", "warning"]),
+        file: z.string(),
+        message: z.string(),
+    }))
+        .optional(),
     stats: z.object({
-        total: z.number(), done: z.number(), inProgress: z.number(),
-        planned: z.number(), blocked: z.number(), dropped: z.number(), warnings: z.number(),
+        total: z.number(),
+        done: z.number(),
+        inProgress: z.number(),
+        planned: z.number(),
+        blocked: z.number(),
+        dropped: z.number(),
+        warnings: z.number(),
     }),
 });
 export const DEFAULT_IGNORES = [
-    "**/node_modules/**", "**/.git/**", "**/dist/**", "**/out/**", "**/build/**",
-    "**/bin/**", "**/obj/**", "**/.waymark/**", "**/coverage/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/build/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.waymark/**",
+    "**/coverage/**",
 ];
 export const IGNORE_DIR_NAMES = [
-    "node_modules", ".git", "dist", "out", "build", "bin", "obj", ".waymark", "coverage",
+    "node_modules",
+    ".git",
+    "dist",
+    "out",
+    "build",
+    "bin",
+    "obj",
+    ".waymark",
+    "coverage",
 ];

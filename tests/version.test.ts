@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import { getVersion } from "../src/version.js";
 
 describe("getVersion", () => {

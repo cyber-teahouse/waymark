@@ -1,5 +1,5 @@
-import { buildWorkflow } from "../sync/build.js";
 import { workflowInputMtime } from "../render/render.js";
+import { buildWorkflow } from "../sync/build.js";
 let entry = null;
 let lastRoot = null;
 let rebuildCount = 0;
@@ -22,7 +22,9 @@ export function getWorkflowCached(root) {
         lastRoot = root;
         return { workflow, issues, fromCache: false };
     });
-    queue = run.catch(() => { });
+    queue = run.catch(() => {
+        /* 下一次调用重新尝试 */
+    });
     return run;
 }
 /** 测试与诊断用：累计重建次数与缓存状态。 */

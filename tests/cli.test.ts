@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { describe, expect, it, vi } from "vitest";
 import { runCli } from "../src/cli.js";
+import { makeSampleProject } from "./helpers.js";
 
 async function makeValidProject(): Promise<string> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-cli-"));
@@ -60,12 +60,13 @@ describe("acc 命令（单项验收勾选）", () => {
     const root = await makeValidProject();
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
     await runCli(["--root", root, "acc", "M2-auth", "2"]);
-    const out = spy.mock.calls.map(c => c[0]).join("\n");
+    const out = spy.mock.calls.map((c) => c[0]).join("\n");
     spy.mockRestore();
     expect(out).toContain("验收已更新");
     expect(out).toContain("[x] 2. 刷新令牌");
-    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8"))
-      .toContain("- [x] 刷新令牌");
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8")).toContain(
+      "- [x] 刷新令牌",
+    );
   });
 
   it("越界序号报错退出", async () => {

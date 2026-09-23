@@ -3,13 +3,18 @@ import path from "node:path";
 import fg from "fast-glob";
 
 export interface HubEntry {
-  dir: string;      // 项目根（绝对路径）
-  name: string;     // 项目名（workflow.project，缺省用目录名）
-  found: boolean;   // .waymark/workflow.json 是否可读
-  error?: string;   // 未同步/解析失败说明
+  dir: string; // 项目根（绝对路径）
+  name: string; // 项目名（workflow.project，缺省用目录名）
+  found: boolean; // .waymark/workflow.json 是否可读
+  error?: string; // 未同步/解析失败说明
   stats?: {
-    total: number; done: number; inProgress: number;
-    planned: number; blocked: number; dropped: number; warnings: number;
+    total: number;
+    done: number;
+    inProgress: number;
+    planned: number;
+    blocked: number;
+    dropped: number;
+    warnings: number;
   };
   generatedAt?: string;
   pagePath?: string; // .waymark/index.html 绝对路径（存在才有）
@@ -28,7 +33,7 @@ export function gatherHubData(patterns: string[]): HubEntry[] {
       dirs.add(d);
     }
   }
-  return [...dirs].sort().map(dir => {
+  return [...dirs].sort().map((dir) => {
     const wfFile = path.join(dir, ".waymark", "workflow.json");
     const page = path.join(dir, ".waymark", "index.html");
     const hasPage = fs.existsSync(page);
@@ -47,7 +52,9 @@ export function gatherHubData(patterns: string[]): HubEntry[] {
         dir,
         name: path.basename(dir),
         found: false,
-        error: fs.existsSync(wfFile) ? `workflow.json 解析失败: ${(e as Error).message}` : "未生成工作流数据（在项目根运行 waymark sync）",
+        error: fs.existsSync(wfFile)
+          ? `workflow.json 解析失败: ${(e as Error).message}`
+          : "未生成工作流数据（在项目根运行 waymark sync）",
         pagePath: hasPage ? page : undefined,
       } satisfies HubEntry;
     }
@@ -71,7 +78,8 @@ function relTime(iso?: string): string | null {
 }
 
 function ring(percent: number): string {
-  const R = 20, C = 2 * Math.PI * R;
+  const R = 20,
+    C = 2 * Math.PI * R;
   const arc = (Math.max(0, Math.min(100, percent)) / 100) * C;
   return `<svg class="hub-ring" viewBox="0 0 46 46" aria-hidden="true">
     <circle class="hr-track" cx="23" cy="23" r="${R}"/>
@@ -83,25 +91,24 @@ function ring(percent: number): string {
 /** 聚合页：纯静态 HTML（复用任务控制台视觉令牌），卡片链接指向各项目 index.html。 */
 export function renderHubHtml(entries: HubEntry[], generatedAt: string): string {
   const STALE_DAYS = 7;
-  const cards = entries.map(e => {
-    const title = escapeHtml(e.name);
-    if (!e.found) {
-      return `<div class="hub-card hub-missing">
+  const cards = entries
+    .map((e) => {
+      const title = escapeHtml(e.name);
+      if (!e.found) {
+        return `<div class="hub-card hub-missing">
         <div class="hub-card-head"><h2>${title}</h2><span class="hub-tag">未同步</span></div>
         <div class="hub-missing-msg">${escapeHtml(e.error ?? "未生成工作流数据")}</div>
       </div>`;
-    }
-    const s = e.stats!;
-    const percent = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
-    const rel = relTime(e.generatedAt);
-    const stale = e.generatedAt
-      ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS
-      : false;
-    const link = e.pagePath
-      ? `file:///${e.pagePath.replace(/\\/g, "/").replace(/^\/+/, "")}`
-      : null;
-    const open = `<div class="hub-open">${link ? `<a href="${link}">打开进度页 →</a>` : `<span class="hub-no-page">未渲染页面（waymark render）</span>`}</div>`;
-    return `<div class="hub-card">
+      }
+      const s = e.stats!;
+      const percent = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+      const rel = relTime(e.generatedAt);
+      const stale = e.generatedAt
+        ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS
+        : false;
+      const link = e.pagePath ? `file:///${e.pagePath.replace(/\\/g, "/").replace(/^\/+/, "")}` : null;
+      const open = `<div class="hub-open">${link ? `<a href="${link}">打开进度页 →</a>` : `<span class="hub-no-page">未渲染页面（waymark render）</span>`}</div>`;
+      return `<div class="hub-card">
       <div class="hub-card-head">${ring(percent)}
         <div><h2>${link ? `<a href="${link}">${title}</a>` : title}</h2>
         <div class="hub-sub">${s.done} / ${s.total} 完成${rel ? ` · ${rel}` : ""}${stale ? ` · <b class="hub-stale">数据已过期</b>` : ""}</div></div>
@@ -117,7 +124,8 @@ export function renderHubHtml(entries: HubEntry[], generatedAt: string): string 
       </div>
       ${open}
     </div>`;
-  }).join("\n");
+    })
+    .join("\n");
 
   return `<!doctype html>
 <html lang="zh-CN">

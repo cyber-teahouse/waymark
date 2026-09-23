@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
+import { describe, expect, it, vi } from "vitest";
 import { runCli } from "../src/cli.js";
 import { renderStatus, statusReport } from "../src/plan/status.js";
 import type { WorkflowJson } from "../src/types.js";
+import { makeSampleProject } from "./helpers.js";
 
 async function syncedProject(): Promise<string> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-status-"));
@@ -25,9 +25,59 @@ describe("renderStatus", () => {
       generatedAt: "2026-09-23T10:00:00Z",
       project: "示例",
       nodes: [
-        { id: "A", title: "甲", type: "milestone", declaredStatus: "done", inferredStatus: null, displayStatus: "done", warning: null, confidence: 1, evidenceReport: [], acceptance: [], completionLog: [], commits: [], iteration: "I1", deps: [], file: "plan/a.md", description: "" },
-        { id: "B", title: "乙", type: "task", declaredStatus: "planned", inferredStatus: null, displayStatus: "planned", warning: null, confidence: 1, evidenceReport: [], acceptance: [], completionLog: [], commits: [], iteration: "I1", deps: ["A"], file: "plan/b.md", description: "" },
-        { id: "C", title: "丙", type: "task", declaredStatus: "blocked", inferredStatus: null, displayStatus: "blocked", warning: null, confidence: 1, evidenceReport: [], acceptance: [], completionLog: [], commits: [], deps: [], file: "plan/c.md", description: "" },
+        {
+          id: "A",
+          title: "甲",
+          type: "milestone",
+          declaredStatus: "done",
+          inferredStatus: null,
+          displayStatus: "done",
+          warning: null,
+          confidence: 1,
+          evidenceReport: [],
+          acceptance: [],
+          completionLog: [],
+          commits: [],
+          iteration: "I1",
+          deps: [],
+          file: "plan/a.md",
+          description: "",
+        },
+        {
+          id: "B",
+          title: "乙",
+          type: "task",
+          declaredStatus: "planned",
+          inferredStatus: null,
+          displayStatus: "planned",
+          warning: null,
+          confidence: 1,
+          evidenceReport: [],
+          acceptance: [],
+          completionLog: [],
+          commits: [],
+          iteration: "I1",
+          deps: ["A"],
+          file: "plan/b.md",
+          description: "",
+        },
+        {
+          id: "C",
+          title: "丙",
+          type: "task",
+          declaredStatus: "blocked",
+          inferredStatus: null,
+          displayStatus: "blocked",
+          warning: null,
+          confidence: 1,
+          evidenceReport: [],
+          acceptance: [],
+          completionLog: [],
+          commits: [],
+          deps: [],
+          file: "plan/c.md",
+          description: "",
+        },
       ],
       edges: [{ from: "A", to: "B" }],
       iterations: [{ id: "I1", title: "MVP", nodeIds: ["A", "B"] }],
@@ -45,12 +95,30 @@ describe("renderStatus", () => {
 
   it("依赖未满足与旁路 dropped 的口径和 ready 一致", () => {
     const base = {
-      version: 1 as const, generatedAt: "2026-09-23T12:00:00Z", project: "p",
-      edges: [] as { from: string; to: string }[], iterations: [], issues: [],
-      evidenceReport: [], acceptance: [], completionLog: [], commits: [], file: "", description: "", confidence: 1, warning: null, inferredStatus: null,
+      version: 1 as const,
+      generatedAt: "2026-09-23T12:00:00Z",
+      project: "p",
+      edges: [] as { from: string; to: string }[],
+      iterations: [],
+      issues: [],
+      evidenceReport: [],
+      acceptance: [],
+      completionLog: [],
+      commits: [],
+      file: "",
+      description: "",
+      confidence: 1,
+      warning: null,
+      inferredStatus: null,
     };
     const mk = (id: string, displayStatus: "done" | "planned" | "dropped", deps: string[]) => ({
-      ...base, id, title: id, type: "task" as const, declaredStatus: displayStatus, displayStatus, deps,
+      ...base,
+      id,
+      title: id,
+      type: "task" as const,
+      declaredStatus: displayStatus,
+      displayStatus,
+      deps,
     });
     const wf: WorkflowJson = {
       ...base,
@@ -58,7 +126,9 @@ describe("renderStatus", () => {
         mk("A", "done", []),
         mk("B", "dropped", []),
         // C 依赖已完成的 A → 可开工；D 依赖 dropped 的 B → 可开工；E 依赖不存在的 X → 可开工
-        mk("C", "planned", ["A"]), mk("D", "planned", ["B"]), mk("E", "planned", ["X"]),
+        mk("C", "planned", ["A"]),
+        mk("D", "planned", ["B"]),
+        mk("E", "planned", ["X"]),
         // F 依赖 planned 的 C → 不可开工
         mk("F", "planned", ["C"]),
       ],
@@ -78,7 +148,7 @@ describe("waymark status 命令", () => {
     const root = await syncedProject();
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
     await runCli(["status", "--root", root]);
-    const out = spy.mock.calls.map(c => c[0]).join("\n");
+    const out = spy.mock.calls.map((c) => c[0]).join("\n");
     spy.mockRestore();
     expect(out).toContain("进度工作流");
     expect(out).toContain("（1/3）");
@@ -95,7 +165,7 @@ describe("waymark status 命令", () => {
 
     spy.mockClear();
     await runCli(["status", "--root", root, "--fresh"]);
-    const out = spy.mock.calls.map(c => c[0]).join("\n");
+    const out = spy.mock.calls.map((c) => c[0]).join("\n");
     expect(out).toContain("进度工作流");
 
     spy.mockRestore();

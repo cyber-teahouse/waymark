@@ -20,6 +20,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - run: npx biome check
       - run: npm run build
       - run: npm run build:web
       - name: dist 新鲜度校验（防 src/dist 漂移；含未跟踪的新产物文件）

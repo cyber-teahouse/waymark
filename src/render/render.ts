@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderHtml } from "./template.js";
-import { WorkflowJsonSchema, IGNORE_DIR_NAMES, type WorkflowJson } from "../types.js";
 import { loadPlan } from "../parser/parsePlan.js";
+import { IGNORE_DIR_NAMES, type WorkflowJson, WorkflowJsonSchema } from "../types.js";
+import { renderHtml } from "./template.js";
 
 export function bundlePath(): string {
   // 编译后位于 dist/render/render.js → ../web-dist = dist/web-dist（与 vite outDir 一致）
@@ -55,8 +55,7 @@ export function dirNewestMtime(dir: string): number {
       const full = path.join(d, e.name);
       if (e.isDirectory()) {
         if (!IGNORE_DIR_NAMES.includes(e.name)) walk(full);
-      }
-      else {
+      } else {
         try {
           newest = Math.max(newest, fs.statSync(full).mtimeMs);
         } catch {

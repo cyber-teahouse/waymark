@@ -6,5 +6,5 @@ export function renderHtml(workflow, bundleHtml) {
     }
     // `<` 防止 </script> 提前闭合标签；`>` 一并转义防止 `-->`/XML 上下文异常
     const inject = `<script>window.__WAYMARK_DATA__=${JSON.stringify(workflow).replace(/</g, "\\u003c").replace(/>/g, "\\u003e")};</script>`;
-    return bundleHtml.replace(ROOT_DIV_RE, match => `${match}${inject}`);
+    return bundleHtml.replace(ROOT_DIV_RE, (match) => `${match}${inject}`);
 }

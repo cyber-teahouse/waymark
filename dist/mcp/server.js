@@ -1,10 +1,10 @@
-import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "../plan/commands.js";
+import { z } from "zod";
 import { collectPlanIssues } from "../plan/check.js";
-import { getVersion } from "../version.js";
+import { blockNode, dropNode, listReady, markDone, reopenNode, startNode, toggleAcceptance, } from "../plan/commands.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
+import { getVersion } from "../version.js";
 const SERVER_NAME = "waymark";
 function jsonText(obj) {
     return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
@@ -20,14 +20,21 @@ export function createMcpServer(root) {
             project: workflow.project,
             generatedAt: workflow.generatedAt,
             stats: workflow.stats,
-            iterations: workflow.iterations.map(it => ({
-                id: it.id, title: it.title, goal: it.goal, window: it.window,
+            iterations: workflow.iterations.map((it) => ({
+                id: it.id,
+                title: it.title,
+                goal: it.goal,
+                window: it.window,
             })),
             issuesCount: issues.length,
-            nodes: workflow.nodes.map(n => ({
-                id: n.id, title: n.title, type: n.type,
-                displayStatus: n.displayStatus, warning: n.warning,
-                iteration: n.iteration, deps: n.deps,
+            nodes: workflow.nodes.map((n) => ({
+                id: n.id,
+                title: n.title,
+                type: n.type,
+                displayStatus: n.displayStatus,
+                warning: n.warning,
+                iteration: n.iteration,
+                deps: n.deps,
             })),
         });
     });
@@ -36,7 +43,7 @@ export function createMcpServer(root) {
         inputSchema: { id: z.string().min(1) },
     }, async ({ id }) => {
         const { workflow } = await getWorkflowCached(root);
-        const node = workflow.nodes.find(n => n.id === id);
+        const node = workflow.nodes.find((n) => n.id === id);
         if (!node)
             throw new Error(`未找到节点: ${id}`);
         return jsonText(node);
@@ -128,12 +135,11 @@ export function createMcpServer(root) {
         const { file, warnings, acceptance } = toggleAcceptance(root, id, indices);
         return jsonText({ message: "验收已更新", file, warnings, acceptance });
     });
-    server.registerTool("waymark_check", { description: "校验 /plan 规范",
-    }, async () => {
+    server.registerTool("waymark_check", { description: "校验 /plan 规范" }, async () => {
         const issues = collectPlanIssues(root);
         return jsonText({
-            errors: issues.filter(i => i.level === "error").length,
-            warnings: issues.filter(i => i.level === "warning").length,
+            errors: issues.filter((i) => i.level === "error").length,
+            warnings: issues.filter((i) => i.level === "warning").length,
             issues,
         });
     });

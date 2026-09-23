@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runInit } from "../src/scaffold.js";
-import { loadPlan } from "../src/parser/parsePlan.js";
+import { beforeAll, describe, expect, it } from "vitest";
 import { buildGraph } from "../src/graph/buildGraph.js";
-import { validatePlan, validatePatterns } from "../src/graph/validate.js";
+import { validatePatterns, validatePlan } from "../src/graph/validate.js";
+import { loadPlan } from "../src/parser/parsePlan.js";
+import { runInit } from "../src/scaffold.js";
 
 let root: string;
 beforeAll(() => {

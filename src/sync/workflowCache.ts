@@ -1,6 +1,6 @@
-import type { PlanIssue, WorkflowJson } from "../types.js";
-import { buildWorkflow } from "../sync/build.js";
 import { workflowInputMtime } from "../render/render.js";
+import { buildWorkflow } from "../sync/build.js";
+import type { PlanIssue, WorkflowJson } from "../types.js";
 
 export interface CachedWorkflow {
   workflow: WorkflowJson;
@@ -39,7 +39,9 @@ export function getWorkflowCached(root: string): Promise<CachedWorkflow> {
     lastRoot = root;
     return { workflow, issues, fromCache: false };
   });
-  queue = run.catch(() => { /* 下一次调用重新尝试 */ });
+  queue = run.catch(() => {
+    /* 下一次调用重新尝试 */
+  });
   return run;
 }
 

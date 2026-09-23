@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadPlan } from "../parser/parsePlan.js";
 import { parseAcceptance } from "../infer/inferStatus.js";
+import { loadPlan } from "../parser/parsePlan.js";
 function splitFrontmatter(raw) {
     const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(raw);
     if (!m)
@@ -14,8 +14,8 @@ function today() {
 }
 /** 依赖中未满足（存在且非 done/dropped）的 id 列表；缺失的依赖视为满足，由 check 另行报错。 */
 function unmetDeps(plan, deps) {
-    const statusOf = new Map(plan.nodes.map(n => [n.fm.id, n.fm.status]));
-    return deps.filter(d => {
+    const statusOf = new Map(plan.nodes.map((n) => [n.fm.id, n.fm.status]));
+    return deps.filter((d) => {
         const s = statusOf.get(d);
         return s !== undefined && s !== "done" && s !== "dropped";
     });
@@ -35,7 +35,7 @@ function insertCompletionNote(body, date, text) {
 /** 把节点标记为完成：status → done，可选勾全部验收、追加完成记录行。只动 frontmatter 的 status/acceptance 与完成记录区块。 */
 export function markDone(root, id, opts = {}) {
     const plan = loadPlan(root);
-    const doc = plan.nodes.find(n => n.fm.id === id);
+    const doc = plan.nodes.find((n) => n.fm.id === id);
     if (!doc)
         throw new Error(`未找到节点: ${id}`);
     const abs = path.join(root, doc.file);
@@ -58,7 +58,7 @@ export function markDone(root, id, opts = {}) {
     if (unmet.length)
         warnings.push(`依赖未完成: ${unmet.join("、")}——请确认是否确实可以完成`);
     if (!opts.allAcceptance) {
-        const unchecked = doc.fm.acceptance.filter(a => !/^\s*\[\s*[xX]\s*\]/.test(a)).length;
+        const unchecked = doc.fm.acceptance.filter((a) => !/^\s*\[\s*[xX]\s*\]/.test(a)).length;
         if (unchecked > 0)
             warnings.push(`${unchecked} 项验收标准未勾选——如已全部达成可用 --acc 勾选`);
     }
@@ -72,7 +72,7 @@ export function markDone(root, id, opts = {}) {
 /** 认领开工：planned → in-progress。非 planned 报错；依赖未满足仅警告（允许有意识的并行开发）。 */
 export function startNode(root, id) {
     const plan = loadPlan(root);
-    const doc = plan.nodes.find(n => n.fm.id === id);
+    const doc = plan.nodes.find((n) => n.fm.id === id);
     if (!doc)
         throw new Error(`未找到节点: ${id}`);
     if (doc.fm.status !== "planned") {
@@ -93,7 +93,7 @@ export function startNode(root, id) {
  *  目标状态与当前相同且无说明时不改写文件（幂等）。 */
 function changeStatus(root, id, to, opts, logTag) {
     const plan = loadPlan(root);
-    const doc = plan.nodes.find(n => n.fm.id === id);
+    const doc = plan.nodes.find((n) => n.fm.id === id);
     if (!doc)
         throw new Error(`未找到节点: ${id}`);
     const abs = path.join(root, doc.file);
@@ -127,7 +127,7 @@ export function dropNode(root, id, opts = {}) {
 /** 重新打开：done/blocked/dropped → in-progress（撤销误操作；--planned 退回未开始）。 */
 export function reopenNode(root, id, opts = {}) {
     const plan = loadPlan(root);
-    const doc = plan.nodes.find(n => n.fm.id === id);
+    const doc = plan.nodes.find((n) => n.fm.id === id);
     if (!doc)
         throw new Error(`未找到节点: ${id}`);
     if (doc.fm.status === "planned") {
@@ -148,7 +148,7 @@ export function toggleAcceptance(root, id, indices) {
     if (indices.length === 0)
         throw new Error("未指定验收项序号");
     const plan = loadPlan(root);
-    const doc = plan.nodes.find(n => n.fm.id === id);
+    const doc = plan.nodes.find((n) => n.fm.id === id);
     if (!doc)
         throw new Error(`未找到节点: ${id}`);
     const total = doc.fm.acceptance.length;
@@ -166,7 +166,9 @@ export function toggleAcceptance(root, id, indices) {
     const targets = new Set(indices);
     let inAcc = false;
     let itemNo = 0;
-    const nextFm = fm.split(/\r?\n/).map(l => {
+    const nextFm = fm
+        .split(/\r?\n/)
+        .map((l) => {
         if (/^acceptance:\s*$/.test(l)) {
             inAcc = true;
             return l;
@@ -182,18 +184,18 @@ export function toggleAcceptance(root, id, indices) {
         if (!targets.has(itemNo))
             return l;
         return `${m[1]}[${m[2] === " " ? "x" : " "}]${m[3]}`;
-    }).join("\n");
+    })
+        .join("\n");
     if (itemNo !== total) {
         throw new Error(`${id} 的 acceptance 写法不规范（声明 ${total} 项，块列表中只识别到 ${itemNo} 项）——请使用 "- [ ] 文本" 块列表写法`);
     }
     fs.writeFileSync(abs, `---\n${nextFm}\n---\n${body}`, "utf8");
-    const acceptance = parseAcceptance(doc.fm.acceptance)
-        .map((a, i) => targets.has(i + 1) ? { ...a, done: !a.done } : a);
+    const acceptance = parseAcceptance(doc.fm.acceptance).map((a, i) => targets.has(i + 1) ? { ...a, done: !a.done } : a);
     const warnings = [];
-    if (doc.fm.status === "done" && acceptance.some(a => !a.done)) {
+    if (doc.fm.status === "done" && acceptance.some((a) => !a.done)) {
         warnings.push("节点已完成——取消验收勾选会让 done 状态与验收不一致，请复核");
     }
-    if (doc.fm.status !== "done" && acceptance.length > 0 && acceptance.every(a => a.done)) {
+    if (doc.fm.status !== "done" && acceptance.length > 0 && acceptance.every((a) => a.done)) {
         warnings.push("验收已全部勾选——可以用 waymark done 收尾");
     }
     return { file: doc.file, warnings, acceptance };
@@ -201,12 +203,12 @@ export function toggleAcceptance(root, id, indices) {
 /** 可开工节点：planned 且依赖全部 done/dropped（缺失的依赖视为满足，由 check 另行报错）。 */
 export function listReady(root) {
     const plan = loadPlan(root);
-    const statusOf = new Map(plan.nodes.map(n => [n.fm.id, n.fm.status]));
+    const statusOf = new Map(plan.nodes.map((n) => [n.fm.id, n.fm.status]));
     return plan.nodes
-        .filter(n => n.fm.status === "planned")
-        .filter(n => n.fm.deps.every(d => {
+        .filter((n) => n.fm.status === "planned")
+        .filter((n) => n.fm.deps.every((d) => {
         const s = statusOf.get(d);
         return s === undefined || s === "done" || s === "dropped";
     }))
-        .map(n => ({ id: n.fm.id, title: n.fm.title, iteration: n.fm.iteration, file: n.file }));
+        .map((n) => ({ id: n.fm.id, title: n.fm.title, iteration: n.fm.iteration, file: n.file }));
 }

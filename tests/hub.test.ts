@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeSampleProject } from "./helpers.js";
-import { buildWorkflow } from "../src/sync/build.js";
-import { writeWorkflow, writeIndexHtml } from "../src/render/render.js";
-import { gatherHubData, renderHubHtml } from "../src/hub/hub.js";
+import { beforeAll, describe, expect, it } from "vitest";
 import { runCli } from "../src/cli.js";
+import { gatherHubData, renderHubHtml } from "../src/hub/hub.js";
+import { writeIndexHtml, writeWorkflow } from "../src/render/render.js";
+import { buildWorkflow } from "../src/sync/build.js";
+import { makeSampleProject } from "./helpers.js";
 
 let base: string;
 let synced: string;
@@ -30,12 +30,12 @@ beforeAll(async () => {
 describe("gatherHubData", () => {
   it("aggregates synced/unsynced/empty projects by glob, skipping noise dirs", async () => {
     const entries = gatherHubData([`${base}/*`]);
-    expect(entries.map(e => e.name).sort()).toEqual(["alpha-proj", "beta-proj", "gamma-empty"]);
-    const alpha = entries.find(e => e.name === "alpha-proj")!;
+    expect(entries.map((e) => e.name).sort()).toEqual(["alpha-proj", "beta-proj", "gamma-empty"]);
+    const alpha = entries.find((e) => e.name === "alpha-proj")!;
     expect(alpha.found).toBe(true);
     expect(alpha.stats!.total).toBe(3);
     expect(alpha.pagePath).toBeTruthy();
-    const beta = entries.find(e => e.name === "beta-proj")!;
+    const beta = entries.find((e) => e.name === "beta-proj")!;
     expect(beta.found).toBe(false);
     expect(beta.error).toContain("waymark sync");
   });
@@ -69,7 +69,7 @@ describe("renderHubHtml", () => {
   it("marks stale data older than 7 days", () => {
     const entries = gatherHubData([`${base}/alpha-proj`]);
     const old = new Date(Date.now() - 10 * 86400000).toISOString();
-    const patched = entries.map(e => ({ ...e, generatedAt: old }));
+    const patched = entries.map((e) => ({ ...e, generatedAt: old }));
     const html = renderHubHtml(patched, new Date().toISOString());
     expect(html).toContain("已过期");
   });
