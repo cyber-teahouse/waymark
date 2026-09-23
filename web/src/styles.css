@@ -248,10 +248,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   width: 204px; height: 152px;
   display: flex; flex-direction: column; align-items: center;
   cursor: pointer;
-  animation: wp-in 480ms ease-out backwards;
 }
+/* 入场动画只在首次加载播放（.enter 仅首帧挂载的节点携带），筛选/切换重挂载不播 */
+.wp.enter { animation: wp-in 480ms ease-out backwards; }
 @keyframes wp-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .wp { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .wp.enter { animation: none; } }
 
 /* 图钉：泪滴形（圆 + 45° 折角），状态着色，进行中呼吸脉冲 */
 .wp-pin {
@@ -624,4 +625,42 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .compass-n {
   fill: var(--ink-3); font-size: 9px;
   text-anchor: middle; font-family: var(--font-mono);
+}
+
+/* ============ 快捷键说明浮层 ============ */
+.help-wrap { position: relative; }
+.help-btn {
+  position: relative; z-index: 30;
+  width: 26px; height: 26px; border-radius: 50%;
+  appearance: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--ink-2); font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.help-btn:hover { border-color: var(--accent); color: var(--accent); }
+.help-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); background: var(--wip-bg); }
+.help-backdrop { position: fixed; inset: 0; z-index: 29; cursor: default; }
+.help-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+  width: 320px; max-width: 84vw;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow-lift);
+  padding: 12px 14px 13px;
+  animation: help-in 140ms ease-out;
+}
+@keyframes help-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.help-title {
+  margin-bottom: 9px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+}
+.help-list { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.help-list > div { display: flex; align-items: baseline; gap: 10px; }
+.help-list dt { flex: none; min-width: 96px; font-size: 11px; color: var(--ink); }
+.help-list dd { margin: 0; font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.help-list kbd {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink); white-space: nowrap;
+  background: var(--planned-bg); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 5px;
 }

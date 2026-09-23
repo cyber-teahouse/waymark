@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow, Controls, MarkerType, Handle, Position, Panel, useReactFlow,
   type Node, type Edge, type NodeProps, type EdgeProps,
@@ -26,8 +26,13 @@ const STATUS_GLYPH: Record<string, string> = {
   done: "✓", "in-progress": "●", planned: "○", blocked: "▲", dropped: "✕",
 };
 
+// 入场动画只播一次：首帧挂载的节点播；之后筛选/切换导致的重挂载不再播（FlowView 首帧后置 true）
+let entrancePlayed = false;
+
 function PlanNode({ data, selected }: NodeProps) {
   const { wf, ready, rank, onSelect } = data as PlanNodeData;
+  // 挂载瞬间定格是否播入场动画，后续重渲染不影响（避免动画被中途摘掉）
+  const [enter] = useState(() => !entrancePlayed);
   const accTotal = wf.acceptance.length;
   const accDone = wf.acceptance.filter(a => a.done).length;
   const depCount = wf.deps.length;
@@ -44,6 +49,7 @@ function PlanNode({ data, selected }: NodeProps) {
     `st-${wf.displayStatus}`,
     wf.cycle ? "cycle" : "",
     selected ? "selected" : "",
+    enter ? "enter" : "",
   ].filter(Boolean).join(" ");
   return (
     <div
@@ -414,6 +420,9 @@ export default function FlowView({ nodes, edges, iterations, selectedId, readyId
   useEffect(() => {
     onTrailChange?.(trailIds);
   }, [trailIds, onTrailChange]);
+
+  // 首帧提交后标记：之后挂载的节点不再播入场动画
+  useEffect(() => { entrancePlayed = true; }, []);
 
   const wrapRef = useRef<HTMLDivElement>(null);
 
