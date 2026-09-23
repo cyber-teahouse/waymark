@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadPlan } from "../parser/parsePlan.js";
+import { parseAcceptance } from "../infer/inferStatus.js";
+import type { AcceptanceItem } from "../types.js";
 
 export interface MarkDoneOptions {
   note?: string;
@@ -179,9 +181,61 @@ export function reopenNode(root: string, id: string, opts: StatusChangeOptions =
   return changeStatus(root, id, to, opts, "reopened");
 }
 
-/** 可开工节点：planned 且依赖全部 done/dropped（缺失的依赖视为满足，由 check 另行报错）。 */
-export function listReady(root: string): ReadyItem[] {
+/** 勾选/取消单项验收（indices 为 1 起编号，与页面展示顺序一致，可多个）：
+ *  只翻转 acceptance 列表块内指定行的 [ ]/[x]，其余 frontmatter 与正文不动。 */
+export function toggleAcceptance(
+  root: string,
+  id: string,
+  indices: number[],
+): { file: string; warnings: string[]; acceptance: AcceptanceItem[] } {
+  if (indices.length === 0) throw new Error("未指定验收项序号");
   const plan = loadPlan(root);
+  const doc = plan.nodes.find(n => n.fm.id === id);
+  if (!doc) throw new Error(`未找到节点: ${id}`);
+  const total = doc.fm.acceptance.length;
+  if (total === 0) throw new Error(`${id} 没有声明验收标准`);
+  for (const i of indices) {
+    if (!Number.isInteger(i) || i < 1 || i > total) {
+      throw new Error(`验收项序号越界: ${i}（共 ${total} 项，1 起编号）`);
+    }
+  }
+  const abs = path.join(root, doc.file);
+  const raw = fs.readFileSync(abs, "utf8");
+  const { fm, body } = splitFrontmatter(raw);
+
+  // 只在 acceptance: 块列表内计数与翻转；遇到下一个顶层键即块结束
+  const targets = new Set(indices);
+  let inAcc = false;
+  let itemNo = 0;
+  const nextFm = fm.split(/\r?\n/).map(l => {
+    if (/^acceptance:\s*$/.test(l)) { inAcc = true; return l; }
+    if (inAcc && /^[^\s-]/.test(l)) inAcc = false;
+    if (!inAcc) return l;
+    const m = /^(\s*-\s*)\[([ xX])\](.*)$/.exec(l);
+    if (!m) return l;
+    itemNo++;
+    if (!targets.has(itemNo)) return l;
+    return `${m[1]}[${m[2] === " " ? "x" : " "}]${m[3]}`;
+  }).join("\n");
+  if (itemNo !== total) {
+    throw new Error(`${id} 的 acceptance 写法不规范（声明 ${total} 项，块列表中只识别到 ${itemNo} 项）——请使用 "- [ ] 文本" 块列表写法`);
+  }
+  fs.writeFileSync(abs, `---\n${nextFm}\n---\n${body}`, "utf8");
+
+  const acceptance = parseAcceptance(doc.fm.acceptance)
+    .map((a, i) => targets.has(i + 1) ? { ...a, done: !a.done } : a);
+  const warnings: string[] = [];
+  if (doc.fm.status === "done" && acceptance.some(a => !a.done)) {
+    warnings.push("节点已完成——取消验收勾选会让 done 状态与验收不一致，请复核");
+  }
+  if (doc.fm.status !== "done" && acceptance.length > 0 && acceptance.every(a => a.done)) {
+    warnings.push("验收已全部勾选——可以用 waymark done 收尾");
+  }
+  return { file: doc.file, warnings, acceptance };
+}
+
+/** 可开工节点：planned 且依赖全部 done/dropped（缺失的依赖视为满足，由 check 另行报错）。 */
+export function listReady(root: string): ReadyItem[] {  const plan = loadPlan(root);
   const statusOf = new Map(plan.nodes.map(n => [n.fm.id, n.fm.status]));
   return plan.nodes
     .filter(n => n.fm.status === "planned")

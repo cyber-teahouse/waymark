@@ -54,3 +54,25 @@ describe("block/drop/reopen 命令接线", () => {
     expect(text).toContain("[blocked] 等待设计稿");
   });
 });
+
+describe("acc 命令（单项验收勾选）", () => {
+  it("勾选指定验收项并输出更新后的清单", async () => {
+    const root = await makeValidProject();
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await runCli(["--root", root, "acc", "M2-auth", "2"]);
+    const out = spy.mock.calls.map(c => c[0]).join("\n");
+    spy.mockRestore();
+    expect(out).toContain("验收已更新");
+    expect(out).toContain("[x] 2. 刷新令牌");
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8"))
+      .toContain("- [x] 刷新令牌");
+  });
+
+  it("越界序号报错退出", async () => {
+    const root = await makeValidProject();
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await runCli(["--root", root, "acc", "M2-auth", "9"]);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("越界"));
+    err.mockRestore();
+  });
+});

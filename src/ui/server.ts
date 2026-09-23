@@ -4,7 +4,7 @@ import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
 import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
-import { startNode, markDone, blockNode, dropNode, reopenNode } from "../plan/commands.js";
+import { startNode, markDone, blockNode, dropNode, reopenNode, toggleAcceptance } from "../plan/commands.js";
 
 export { collectEvidenceWatchTargets } from "../render/render.js";
 
@@ -79,7 +79,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(403, { ok: false, error: "缺少 x-waymark 请求头（防跨站伪造）" });
         return;
       }
-      let body: { id?: unknown; note?: unknown; allAcceptance?: unknown; planned?: unknown };
+      let body: { id?: unknown; note?: unknown; allAcceptance?: unknown; planned?: unknown; indices?: unknown };
       try {
         body = JSON.parse((await readBody(req)) || "{}");
       } catch {
@@ -90,21 +90,28 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         json(400, { ok: false, error: "缺少节点 id" });
         return;
       }
+      if (req.url === "/api/acc"
+        && (!Array.isArray(body.indices) || body.indices.length === 0
+          || !body.indices.every(n => Number.isInteger(n)))) {
+        json(400, { ok: false, error: "缺少验收项序号 indices（非空整数数组，1 起编号）" });
+        return;
+      }
       const note = typeof body.note === "string" && body.note !== "" ? body.note : undefined;
       try {
         const result = (() => {
           switch (req.url) {
-            case "/api/start": return startNode(root, body.id);
-            case "/api/done": return markDone(root, body.id, {
+            case "/api/start": return startNode(root, body.id as string);
+            case "/api/done": return markDone(root, body.id as string, {
               note,
               allAcceptance: body.allAcceptance === true,
             });
-            case "/api/block": return blockNode(root, body.id, { note });
-            case "/api/drop": return dropNode(root, body.id, { note });
-            case "/api/reopen": return reopenNode(root, body.id, {
+            case "/api/block": return blockNode(root, body.id as string, { note });
+            case "/api/drop": return dropNode(root, body.id as string, { note });
+            case "/api/reopen": return reopenNode(root, body.id as string, {
               planned: body.planned === true,
               note,
             });
+            case "/api/acc": return toggleAcceptance(root, body.id as string, body.indices as number[]);
             default: throw new Error(`未知接口: ${req.url}`);
           }
         })();
@@ -113,7 +120,8 @@ export function startServer(root: string, port: number, bundle?: string): http.S
         } catch {
           // 数据半写状态渲染失败不影响操作结果，等下次变更再刷新
         }
-        json(200, { ok: true, file: result.file, warnings: result.warnings });
+        json(200, { ok: true, file: result.file, warnings: result.warnings,
+          ...("acceptance" in result ? { acceptance: result.acceptance } : {}) });
       } catch (e) {
         json(400, { ok: false, error: (e as Error).message });
       }

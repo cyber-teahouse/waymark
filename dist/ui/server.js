@@ -4,7 +4,7 @@ import path from "node:path";
 import { watch } from "chokidar";
 import { renderWorkflowHtml, loadBundle, collectEvidenceWatchTargets } from "../render/render.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
-import { startNode, markDone, blockNode, dropNode, reopenNode } from "../plan/commands.js";
+import { startNode, markDone, blockNode, dropNode, reopenNode, toggleAcceptance } from "../plan/commands.js";
 export { collectEvidenceWatchTargets } from "../render/render.js";
 const MAX_BODY_BYTES = 1_000_000;
 function readBody(req) {
@@ -85,6 +85,12 @@ export function startServer(root, port, bundle) {
                 json(400, { ok: false, error: "缺少节点 id" });
                 return;
             }
+            if (req.url === "/api/acc"
+                && (!Array.isArray(body.indices) || body.indices.length === 0
+                    || !body.indices.every(n => Number.isInteger(n)))) {
+                json(400, { ok: false, error: "缺少验收项序号 indices（非空整数数组，1 起编号）" });
+                return;
+            }
             const note = typeof body.note === "string" && body.note !== "" ? body.note : undefined;
             try {
                 const result = (() => {
@@ -100,6 +106,7 @@ export function startServer(root, port, bundle) {
                             planned: body.planned === true,
                             note,
                         });
+                        case "/api/acc": return toggleAcceptance(root, body.id, body.indices);
                         default: throw new Error(`未知接口: ${req.url}`);
                     }
                 })();
@@ -109,7 +116,8 @@ export function startServer(root, port, bundle) {
                 catch {
                     // 数据半写状态渲染失败不影响操作结果，等下次变更再刷新
                 }
-                json(200, { ok: true, file: result.file, warnings: result.warnings });
+                json(200, { ok: true, file: result.file, warnings: result.warnings,
+                    ...("acceptance" in result ? { acceptance: result.acceptance } : {}) });
             }
             catch (e) {
                 json(400, { ok: false, error: e.message });

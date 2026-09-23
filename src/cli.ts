@@ -7,7 +7,7 @@ import { collectPlanIssues } from "./plan/check.js";
 import { runInit } from "./scaffold.js";
 import { buildWorkflow } from "./sync/build.js";
 import { loadBundle, renderWorkflowHtml, writeIndexHtml, writeWorkflow, planNewerThan } from "./render/render.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "./plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "./plan/commands.js";
 import { statusReport } from "./plan/status.js";
 import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 
@@ -141,6 +141,23 @@ export function createProgram(): Command {
         const root = rootOf(cmd);
         const { file, warnings } = reopenNode(root, id, { planned: opts.planned, note: opts.note });
         console.log(`✔ ${id} 已重新打开（${opts.planned ? "planned" : "in-progress"}，${file}）`);
+        for (const w of warnings) console.warn(`⚠ ${w}`);
+      } catch (e) {
+        console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+        process.exitCode = 1;
+      }
+    });
+
+  withRoot(program.command("acc"))
+    .description("勾选/取消节点的单项验收标准（序号 1 起，与页面展示顺序一致，可多个）")
+    .argument("<id>", "节点 id")
+    .argument("<indices...>", "验收项序号（可多个）")
+    .action((id: string, indices: string[], _opts: unknown, cmd: Command) => {
+      try {
+        const root = rootOf(cmd);
+        const { file, warnings, acceptance } = toggleAcceptance(root, id, indices.map(Number));
+        console.log(`✔ ${id} 验收已更新（${file}）`);
+        acceptance.forEach((a, i) => console.log(`  ${a.done ? "[x]" : "[ ]"} ${i + 1}. ${a.text}`));
         for (const w of warnings) console.warn(`⚠ ${w}`);
       } catch (e) {
         console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);

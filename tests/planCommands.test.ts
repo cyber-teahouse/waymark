@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { makeSampleProject } from "./helpers.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "../src/plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "../src/plan/commands.js";
 import { loadPlan } from "../src/parser/parsePlan.js";
 
 function makeTinyProject(dest: string): void {
@@ -222,5 +222,70 @@ describe("reopenNode（撤销旁路/完成）", () => {
     const { warnings } = reopenNode(root, "B-app");
     expect(warnings.some(w => w.includes("已是 in-progress"))).toBe(true);
     expect(fs.readFileSync(path.join(root, "plan", "milestones", "B.md"), "utf8")).toBe(before);
+  });
+});
+
+describe("toggleAcceptance", () => {
+  it("翻转指定项并写回文件（1 起编号，可多个），返回更新后的验收列表", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-acc-"));
+    await makeSampleProject(root);
+    // M2-auth（in-progress）：[x] 密码登录 / [ ] 刷新令牌
+    const r = toggleAcceptance(root, "M2-auth", [2]);
+    expect(r.file).toBe("plan/milestones/M2-auth.md");
+    expect(r.acceptance).toEqual([
+      { done: true, text: "密码登录" },
+      { done: true, text: "刷新令牌" },
+    ]);
+    // 全部勾选后提示可用 done 收尾
+    expect(r.warnings.some(w => w.includes("全部勾选"))).toBe(true);
+    const text = fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8");
+    expect(text).toContain("- [x] 密码登录");
+    expect(text).toContain("- [x] 刷新令牌");
+
+    // 再翻回（多个序号一次翻转）
+    const r2 = toggleAcceptance(root, "M2-auth", [1, 2]);
+    expect(r2.acceptance).toEqual([
+      { done: false, text: "密码登录" },
+      { done: false, text: "刷新令牌" },
+    ]);
+    const text2 = fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8");
+    expect(text2).toContain("- [ ] 密码登录");
+    expect(text2).toContain("- [ ] 刷新令牌");
+  });
+
+  it("done 节点取消勾选给出复核警告", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-acc2-"));
+    await makeSampleProject(root);
+    // M1-core（done，两项全勾）取消第 1 项
+    const r = toggleAcceptance(root, "M1-core", [1]);
+    expect(r.acceptance[0].done).toBe(false);
+    expect(r.warnings.some(w => w.includes("复核"))).toBe(true);
+  });
+
+  it("序号越界 / 空数组报错", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-acc3-"));
+    await makeSampleProject(root);
+    expect(() => toggleAcceptance(root, "M2-auth", [])).toThrow(/未指定验收项序号/);
+    expect(() => toggleAcceptance(root, "M2-auth", [0])).toThrow(/越界/);
+    expect(() => toggleAcceptance(root, "M2-auth", [3])).toThrow(/越界.*共 2 项/);
+  });
+
+  it("无验收项节点报错", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-acc4-"));
+    await makeSampleProject(root);
+    expect(() => toggleAcceptance(root, "M3-login", [1])).toThrow(/没有声明验收标准/);
+  });
+
+  it("只动 acceptance 块，其余 frontmatter 与正文不变", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-acc5-"));
+    await makeSampleProject(root);
+    const before = fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8");
+    toggleAcceptance(root, "M2-auth", [2]);
+    const after = fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8");
+    expect(after.replace("- [ ] 刷新令牌", "- [ ] 刷新令牌")).toBe(after);
+    // 正文与证据声明保持原样
+    expect(after).toContain("提供登录鉴权能力。");
+    expect(after).toContain("paths: [src/auth/**, src/missing/**]");
+    expect(after.replace("- [x] 刷新令牌", "- [ ] 刷新令牌")).toBe(before);
   });
 });

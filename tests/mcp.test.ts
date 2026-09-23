@@ -18,6 +18,7 @@ const TOOL_NAMES = [
   "waymark_block_node",
   "waymark_drop_node",
   "waymark_reopen_node",
+  "waymark_toggle_acceptance",
   "waymark_check",
 ];
 
@@ -47,7 +48,7 @@ async function makeTempSample(): Promise<string> {
 }
 
 describe("waymark mcp server", () => {
-  it("listTools exposes the 9 tools with non-empty descriptions", async () => {
+  it("listTools exposes the 10 tools with non-empty descriptions", async () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
     const { tools } = await client.listTools();
@@ -234,6 +235,33 @@ describe("waymark 旁路与撤销工具", () => {
     }) as ToolResult);
     expect(node3.declaredStatus).toBe("dropped");
 
+    await client.close();
+    await server.close();
+  });
+});
+
+describe("waymark_toggle_acceptance", () => {
+  it("翻转单项验收并返回更新列表，文件落库", async () => {
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+    const r = await client.callTool({
+      name: "waymark_toggle_acceptance",
+      arguments: { id: "M2-auth", indices: [2] },
+    });
+    const obj = jsonOf(r as ToolResult);
+    expect(obj.acceptance).toEqual([
+      { done: true, text: "密码登录" },
+      { done: true, text: "刷新令牌" },
+    ]);
+    expect(obj.warnings.some((w: string) => w.includes("全部勾选"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8"))
+      .toContain("- [x] 刷新令牌");
+
+    const bad = await client.callTool({
+      name: "waymark_toggle_acceptance",
+      arguments: { id: "M2-auth", indices: [9] },
+    });
+    expect(bad.isError).toBe(true);
     await client.close();
     await server.close();
   });

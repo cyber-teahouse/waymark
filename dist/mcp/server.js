@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { markDone, listReady, startNode, blockNode, dropNode, reopenNode } from "../plan/commands.js";
+import { markDone, listReady, startNode, blockNode, dropNode, reopenNode, toggleAcceptance } from "../plan/commands.js";
 import { collectPlanIssues } from "../plan/check.js";
 import { getVersion } from "../version.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
@@ -121,8 +121,14 @@ export function createMcpServer(root) {
             readyNext: listReady(root),
         });
     });
-    server.registerTool("waymark_check", {
-        description: "校验 /plan 规范",
+    server.registerTool("waymark_toggle_acceptance", {
+        description: "勾选/取消节点的单项验收标准（indices 为 1 起编号，与页面展示顺序一致，可多个；返回更新后的验收列表）",
+        inputSchema: { id: z.string().min(1), indices: z.array(z.number().int().min(1)).min(1) },
+    }, async ({ id, indices }) => {
+        const { file, warnings, acceptance } = toggleAcceptance(root, id, indices);
+        return jsonText({ message: "验收已更新", file, warnings, acceptance });
+    });
+    server.registerTool("waymark_check", { description: "校验 /plan 规范",
     }, async () => {
         const issues = collectPlanIssues(root);
         return jsonText({

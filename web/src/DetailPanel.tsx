@@ -68,7 +68,7 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
   const panelRef = useRef<HTMLElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
   const [showAllCommits, setShowAllCommits] = useState(false);
-  const [busy, setBusy] = useState<null | "start" | "done" | "block" | "drop" | "reopen">(null);
+  const [busy, setBusy] = useState<null | "start" | "done" | "block" | "drop" | "reopen" | "acc">(null);
   const [accAll, setAccAll] = useState(false);
   const [note, setNote] = useState("");
   const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -121,6 +121,29 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
       setActionMsg({ ok: false, text: "网络错误——此页面可能不是 waymark ui 服务提供的，操作未生效" });
       setBusy(null);
     }
+  }
+
+  /** 勾选/取消单项验收（1 起编号）；新数据由 SSE workflow 帧原位推送。 */
+  async function toggleAcc(index: number) {
+    if (busy) return;
+    setBusy("acc");
+    setActionMsg(null);
+    try {
+      const resp = await fetch("/api/acc", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-waymark": "ui" },
+        body: JSON.stringify({ id: node.id, indices: [index] }),
+      });
+      const data = await resp.json().catch(() => null) as { ok?: boolean; error?: string; warnings?: string[] } | null;
+      if (!resp.ok || !data?.ok) {
+        setActionMsg({ ok: false, text: data?.error ?? `请求失败（${resp.status}）` });
+      } else if (data.warnings?.length) {
+        setActionMsg({ ok: true, text: data.warnings.join("；") });
+      }
+    } catch {
+      setActionMsg({ ok: false, text: "网络错误——此页面可能不是 waymark ui 服务提供的，操作未生效" });
+    }
+    setBusy(null);
   }
 
   const warnings: string[] = [];
@@ -246,16 +269,35 @@ export default function DetailPanel({ node, related, isReady, onSelect, onClose 
 
       {node.acceptance.length > 0 && (
         <Section label="验收标准">
-          {node.acceptance.map((a, i) => (
-            <div key={i} className={`acc-row${a.done ? " done" : ""}`}>
-              <span className="cbx" aria-hidden="true">
-                {a.done && (
-                  <svg viewBox="0 0 10 8"><path d="M1 4.2 3.6 6.8 9 1.2" /></svg>
-                )}
-              </span>
-              <span className="acc-text">{a.text}</span>
-            </div>
-          ))}
+          {node.acceptance.map((a, i) => {
+            const inner = (
+              <>
+                <span className="cbx" aria-hidden="true">
+                  {a.done && (
+                    <svg viewBox="0 0 10 8"><path d="M1 4.2 3.6 6.8 9 1.2" /></svg>
+                  )}
+                </span>
+                <span className="acc-idx" aria-hidden="true">{i + 1}</span>
+                <span className="acc-text">{a.text}</span>
+              </>
+            );
+            // ui 模式下整行可点击切换勾选（与 waymark acc <id> <i+1> 同引擎）；
+            // file:// 静态页无服务可写，退化为只读展示
+            return CAN_MUTATE ? (
+              <button
+                key={i}
+                type="button"
+                className={`acc-row clickable${a.done ? " done" : ""}`}
+                title={`点击${a.done ? "取消勾选" : "勾选"}（等价 waymark acc ${node.id} ${i + 1}）`}
+                disabled={busy !== null}
+                onClick={() => toggleAcc(i + 1)}
+              >
+                {inner}
+              </button>
+            ) : (
+              <div key={i} className={`acc-row${a.done ? " done" : ""}`}>{inner}</div>
+            );
+          })}
         </Section>
       )}
 

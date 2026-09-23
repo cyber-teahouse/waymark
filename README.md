@@ -49,6 +49,7 @@ waymark ui         # 本地实时页面（默认 http://localhost:7300）
 
 ```bash
 waymark start M-xxx                         # 认领开工（planned → in-progress；依赖未满足时提示）
+waymark acc M-xxx 2 3                       # 勾选/取消单项验收（1 起编号，与页面展示顺序一致，可多个）
 waymark done M-xxx -m "完成了什么" [--acc]   # 标记完成 + 追加完成记录（--acc 勾全部验收）
 waymark ready                               # 列出可开工节点（planned 且依赖已满足）
 waymark block M-xxx -m "等待平台选型"        # 标记受阻（旁路状态，解除后 reopen 恢复）
@@ -74,6 +75,7 @@ waymark reopen M-xxx                        # 撤销误操作：done/blocked/dro
 | `waymark ui [-p 7300]` | 本地实时工作流页面，watch plan/、证据目录与 git，SSE 推送数据局部刷新（保留画布视口）；页面内可直接认领开工/标记完成/受阻/放弃/重新打开（均可填操作说明，与 CLI/MCP 同引擎，含护栏警告） |
 | `waymark start <id>` | 认领开工：planned → in-progress，依赖未满足时仅提示不阻止 |
 | `waymark done <id> -m <note>` | 标记完成、追加带日期的完成记录，可选 `--acc` 勾选全部验收；依赖未完成/验收未勾/原状态异常时给出护栏警告 |
+| `waymark acc <id> <n…>` | 勾选/取消单项验收标准（1 起编号，与页面展示顺序一致，可多个）；done 节点取消勾选给出复核警告，全部勾选提示可收尾 |
 | `waymark block <id> -m <原因>` | 标记受阻（blocked 旁路），说明带 `[blocked]` 前缀入完成记录；解除阻塞用 `reopen` |
 | `waymark drop <id> -m <原因>` | 放弃节点（dropped 旁路），说明带 `[dropped]` 前缀入完成记录 |
 | `waymark reopen <id> [--planned]` | 重新打开 done/blocked/dropped 节点：默认恢复 in-progress，`--planned` 退回未开始；说明带 `[reopened]` 前缀 |
@@ -131,6 +133,7 @@ plan/
 | `waymark_list_ready` | 列出可开工节点 |
 | `waymark_start_node` | 认领节点开工（planned → in-progress，返回护栏警告与下一步可开工节点） |
 | `waymark_mark_done` | 标记节点完成并追加完成记录（返回护栏警告与下一步可开工节点） |
+| `waymark_toggle_acceptance` | 勾选/取消单项验收标准（indices 1 起编号，可多个，返回更新后的验收列表） |
 | `waymark_block_node` | 标记节点受阻（blocked 旁路，可带说明） |
 | `waymark_drop_node` | 放弃节点（dropped 旁路，可带说明） |
 | `waymark_reopen_node` | 重新打开 done/blocked/dropped 节点（默认 in-progress，`planned=true` 退回未开始） |

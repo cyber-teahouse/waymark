@@ -243,3 +243,45 @@ describe("SSE 热更新与缓存", () => {
     await close(server);
   });
 });
+
+describe("mutation api：POST /api/acc（单项验收勾选）", () => {
+  const STUB = '<html><body><div id="root"></div>stub</body></html>';
+
+  it("勾选指定验收项并落库，缺 indices 报 400", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-api-acc-"));
+    await makeSampleProject(root);
+    const server = startServer(root, 0, STUB);
+    await new Promise<void>(resolve => server.on("listening", resolve));
+    const addr = server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/acc`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-waymark": "ui" },
+      body: JSON.stringify(body),
+    });
+
+    const r = await post({ id: "M2-auth", indices: [2] });
+    expect(r.status).toBe(200);
+    const obj = await r.json();
+    expect(obj.ok).toBe(true);
+    expect(obj.acceptance).toEqual([
+      { done: true, text: "密码登录" },
+      { done: true, text: "刷新令牌" },
+    ]);
+    expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8"))
+      .toContain("- [x] 刷新令牌");
+
+    // 页面数据已重建，携带最新验收状态
+    const page = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+    expect(page).toContain('"text":"刷新令牌","done":true');
+
+    const missing = await post({ id: "M2-auth" });
+    expect(missing.status).toBe(400);
+    const badIdx = await post({ id: "M2-auth", indices: [99] });
+    expect(badIdx.status).toBe(400);
+
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+  });
+});
