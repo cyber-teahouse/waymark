@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/cyber-teahouse/waymark/actions/workflows/ci.yml"><img src="https://github.com/cyber-teahouse/waymark/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="#"><img src="https://img.shields.io/badge/version-0.2.2-%23c98f2c" alt="version"></a>
+  <a href="#"><img src="https://img.shields.io/badge/version-0.3.0-%23c98f2c" alt="version"></a>
   <a href="#"><img src="https://img.shields.io/badge/node-%3E%3D20-339933" alt="node"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license"></a>
   <a href="https://github.com/cyber-teahouse/waymark/commits/main"><img src="https://img.shields.io/github/last-commit/cyber-teahouse/waymark" alt="last commit"></a>
