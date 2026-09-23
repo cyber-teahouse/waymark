@@ -9,8 +9,10 @@ import {
   Panel,
   Position,
   ReactFlow,
+  useReactFlow,
 } from "@xyflow/react";
-import { useEffect, useMemo } from "react";
+import type React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { WorkflowNode } from "../../src/types";
 
 export const STATUS_LABEL: Record<string, string> = {
@@ -22,6 +24,7 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 const NODE_W = 204;
+const NODE_H = 152;
 const EDGE_COLOR = "#8A7B5C";
 const EDGE_HIT = "#B04A24";
 
@@ -41,8 +44,13 @@ const STATUS_GLYPH: Record<string, string> = {
   dropped: "✕",
 };
 
+// 入场动画只播一次：首帧挂载的节点播；之后筛选/切换导致的重挂载不再播（FlowView 首帧后置 true）
+let entrancePlayed = false;
+
 function PlanNode({ data, selected }: NodeProps) {
   const { wf, ready, rank, onSelect } = data as PlanNodeData;
+  // 挂载瞬间定格是否播入场动画，后续重渲染不影响（避免动画被中途摘掉）
+  const [enter] = useState(() => !entrancePlayed);
   const accTotal = wf.acceptance.length;
   const accDone = wf.acceptance.filter((a) => a.done).length;
   const depCount = wf.deps.length;
@@ -56,7 +64,13 @@ function PlanNode({ data, selected }: NodeProps) {
   ]
     .filter(Boolean)
     .join("，");
-  const cls = ["wp", `st-${wf.displayStatus}`, wf.cycle ? "cycle" : "", selected ? "selected" : ""]
+  const cls = [
+    "wp",
+    `st-${wf.displayStatus}`,
+    wf.cycle ? "cycle" : "",
+    selected ? "selected" : "",
+    enter ? "enter" : "",
+  ]
     .filter(Boolean)
     .join(" ");
   return (
@@ -367,6 +381,69 @@ function Legend() {
   );
 }
 
+/** 视口暂存 key：按页面路径隔离（file:// 多项目互不干扰）。 */
+const VIEWPORT_KEY = `waymark.viewport:${typeof window !== "undefined" ? window.location.pathname : ""}`;
+
+/** 视口同步（须挂在 <ReactFlow> 内）：
+ *  画布内容（节点/边集合）变化时防抖重 fit；选中屏外节点时平滑移入视野。 */
+function ViewportSync({
+  selectedId,
+  fp,
+  hasNodes,
+  wrapRef,
+}: {
+  selectedId: string | null;
+  fp: string;
+  hasNodes: boolean;
+  wrapRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const rf = useReactFlow();
+  const prevFp = useRef(fp);
+
+  // 筛选/切换迭代后重新 fit（防抖 350ms：避免搜索逐字输入时连续缩放）
+  useEffect(() => {
+    if (prevFp.current === fp) return;
+    prevFp.current = fp;
+    if (!hasNodes) return;
+    const timer = window.setTimeout(() => {
+      void rf.fitView({ padding: 0.15, duration: 250 });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [fp, hasNodes, rf]);
+
+  // 选中变化时：节点在视野外（或被详情面板遮住）才平滑移入，已在视野内则不动
+  useEffect(() => {
+    if (!selectedId) return;
+    const wrap = wrapRef.current;
+    const node = rf.getNode(selectedId);
+    if (!wrap || !node) return;
+    const { x: vx, y: vy, zoom } = rf.getViewport();
+    const w = node.measured?.width ?? NODE_W;
+    const h = node.measured?.height ?? NODE_H;
+    const cx = node.position.x + w / 2;
+    const cy = node.position.y + h / 2;
+    const rect = wrap.getBoundingClientRect();
+    // 详情面板占位：宽屏右侧抽屉 420px，窄屏底部 72vh 图纸抽屉（与 styles.css 对齐）
+    const wide = rect.width > 720;
+    const M = 56;
+    const safe = {
+      x0: M,
+      y0: M,
+      x1: rect.width - (wide ? 420 : 0) - M,
+      y1: rect.height - (wide ? 0 : rect.height * 0.72) - M,
+    };
+    const sx = cx * zoom + vx;
+    const sy = cy * zoom + vy;
+    if (sx >= safe.x0 && sx <= safe.x1 && sy >= safe.y0 && sy <= safe.y1) return;
+    void rf.setViewport(
+      { x: (safe.x0 + safe.x1) / 2 - cx * zoom, y: (safe.y0 + safe.y1) / 2 - cy * zoom, zoom },
+      { duration: 300 },
+    );
+  }, [selectedId, rf, wrapRef]);
+
+  return null;
+}
+
 export default function FlowView({
   nodes,
   edges,
@@ -423,21 +500,66 @@ export default function FlowView({
     onTrailChange?.(trailIds);
   }, [trailIds, onTrailChange]);
 
+  // 首帧提交后标记：之后挂载的节点不再播入场动画
+  useEffect(() => {
+    entrancePlayed = true;
+  }, []);
+
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // 画布内容指纹（节点 + 依赖边集合）：内容变了才重 fit，也用于视口恢复校验
+  const fp = useMemo(
+    () =>
+      `${nodes
+        .map((n) => n.id)
+        .sort()
+        .join(",")}#${edges
+        .map((e) => `${e.from}>${e.to}`)
+        .sort()
+        .join(",")}`,
+    [nodes, edges],
+  );
+
+  // 整页 reload（SSE / 操作兜底）后恢复视口；指纹不符（数据已变）则退回 fitView。只读首帧
+  const savedViewport = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem(VIEWPORT_KEY);
+      if (!raw) return undefined;
+      const v = JSON.parse(raw) as { fp?: unknown; x?: unknown; y?: unknown; zoom?: unknown };
+      if (v.fp !== fp) return undefined;
+      if (typeof v.x !== "number" || typeof v.y !== "number" || typeof v.zoom !== "number") return undefined;
+      return { x: v.x, y: v.y, zoom: v.zoom };
+    } catch {
+      return undefined;
+    }
+  }, []);
+
   return (
-    <div className="flow">
+    <div className="flow" ref={wrapRef}>
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        nodesDraggable={false}
+        nodesConnectable={false}
+        fitView={!savedViewport}
+        defaultViewport={savedViewport}
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, n) => onSelect(n.id)}
+        onMoveEnd={(_, vp) => {
+          try {
+            sessionStorage.setItem(VIEWPORT_KEY, JSON.stringify({ fp, ...vp }));
+          } catch {
+            /* 存储不可用时静默 */
+          }
+        }}
       >
         <Controls showInteractive={false} />
         <Legend />
+        <ViewportSync selectedId={selectedId} fp={fp} hasNodes={rfNodes.length > 0} wrapRef={wrapRef} />
       </ReactFlow>
       <Compass />
     </div>

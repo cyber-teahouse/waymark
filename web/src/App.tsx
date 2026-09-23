@@ -163,6 +163,7 @@ function Main({ wf }: { wf: WorkflowJson }) {
   const [selected, setSelected] = useState<string | null>(initial.node);
   const [query, setQuery] = useState<string>(initial.q);
   const [statusFilter, setStatusFilter] = useState<string | null>(initial.st);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // 状态 → hash（replaceState，不产生历史记录；外部 hash 变化通过 hashchange 回流）
   useEffect(() => {
@@ -225,6 +226,11 @@ function Main({ wf }: { wf: WorkflowJson }) {
       const trail = trailRef.current;
 
       if (e.key === "Escape") {
+        if (helpOpen) {
+          setHelpOpen(false);
+          e.preventDefault();
+          return;
+        }
         if (inField) {
           (t as HTMLInputElement).blur();
           return;
@@ -258,6 +264,11 @@ function Main({ wf }: { wf: WorkflowJson }) {
         e.preventDefault();
         return;
       }
+      if (e.key === "?") {
+        setHelpOpen((v) => !v);
+        e.preventDefault();
+        return;
+      }
       const step = e.key === "j" || e.key === "ArrowDown" ? 1 : e.key === "k" || e.key === "ArrowUp" ? -1 : 0;
       if (step !== 0 && trail.length > 0) {
         const cur = selected ? trail.indexOf(selected) : -1;
@@ -273,7 +284,7 @@ function Main({ wf }: { wf: WorkflowJson }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, visibleIds]);
+  }, [selected, visibleIds, helpOpen]);
 
   const node = wf.nodes.find((n) => n.id === selected) ?? null;
   const errors = (wf.issues ?? []).filter((i) => i.level === "error");
@@ -387,10 +398,63 @@ function Main({ wf }: { wf: WorkflowJson }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {q && (
-            <span className="search-count" aria-live="polite">
+          {(q || statusFilter) && (
+            <span className="search-count" aria-live="polite" title="画布当前显示 / 范围内总数">
               {visible.length}/{scopeNodes.length}
             </span>
+          )}
+        </div>
+        <div className="help-wrap">
+          <button
+            type="button"
+            className="help-btn"
+            aria-label="快捷键说明"
+            aria-expanded={helpOpen}
+            title="快捷键说明（按 ? 开关）"
+            onClick={() => setHelpOpen((v) => !v)}
+          >
+            ?
+          </button>
+          {helpOpen && (
+            <>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 遮罩层仅作点击关闭的增强；键盘用户可按 Esc 关闭（onKey 中已处理 helpOpen） */}
+              <div className="help-backdrop" onClick={() => setHelpOpen(false)} />
+              <div className="help-pop" role="dialog" aria-label="快捷键说明">
+                <div className="help-title">快捷键</div>
+                <dl className="help-list">
+                  <div>
+                    <dt>
+                      <kbd>j</kbd> <kbd>k</kbd> 或 <kbd>↑</kbd> <kbd>↓</kbd>
+                    </dt>
+                    <dd>沿步道顺序移动选中节点</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>Enter</kbd>
+                    </dt>
+                    <dd>
+                      搜索框内跳转下一个匹配（<kbd>Shift</kbd>+<kbd>Enter</kbd> 反向）
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>/</kbd>
+                    </dt>
+                    <dd>聚焦搜索框</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>Esc</kbd>
+                    </dt>
+                    <dd>关闭详情面板 / 退出搜索框</dd>
+                  </div>
+                  <div>
+                    <dt>点击节点</dt>
+                    <dd>打开详情；详情中的依赖条可跳转上下游</dd>
+                  </div>
+                </dl>
+              </div>
+            </>
           )}
         </div>
         <nav className="segments">
