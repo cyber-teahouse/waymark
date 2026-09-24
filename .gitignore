@@ -5,3 +5,5 @@ node_modules/
 # 防误入：外部项目截图与系统日志目录
 /jingjie-*.png
 /NVIDIA Corporation/
+
+.waymark/workflow.json
