@@ -26,6 +26,7 @@ function readBody(req) {
 }
 export function startServer(root, port, bundle) {
     let watcher;
+    let pushTimer;
     const clients = new Set();
     const bundleHtml = bundle ?? loadBundle();
     /** 渲染当前页面。工作流数据走 mtime 指纹缓存（与 MCP 同一缓存）：
@@ -168,10 +169,12 @@ export function startServer(root, port, bundle) {
             ignoreInitial: true,
             awaitWriteFinish: { stabilityThreshold: 200 },
         });
-        let timer;
         watcher.on("all", () => {
-            clearTimeout(timer);
-            timer = setTimeout(async () => {
+            clearTimeout(pushTimer);
+            pushTimer = setTimeout(async () => {
+                // 服务已关闭（防抖窗口内 close）：不再推送，避免滞后重建串到下一个服务实例
+                if (!server.listening)
+                    return;
                 try {
                     await pushUpdate();
                 }
@@ -186,6 +189,7 @@ export function startServer(root, port, bundle) {
         process.exitCode = 1;
     });
     server.on("close", () => {
+        clearTimeout(pushTimer);
         void watcher?.close();
     });
     server.listen(port, "127.0.0.1", () => {

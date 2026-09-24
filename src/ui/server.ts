@@ -30,6 +30,7 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 
 export function startServer(root: string, port: number, bundle?: string): http.Server {
   let watcher: FSWatcher | undefined;
+  let pushTimer: ReturnType<typeof setTimeout> | undefined;
   const clients = new Set<http.ServerResponse>();
   const bundleHtml = bundle ?? loadBundle();
 
@@ -179,10 +180,11 @@ export function startServer(root: string, port: number, bundle?: string): http.S
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200 },
     });
-    let timer: ReturnType<typeof setTimeout> | undefined;
     watcher.on("all", () => {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(async () => {
+        // 服务已关闭（防抖窗口内 close）：不再推送，避免滞后重建串到下一个服务实例
+        if (!server.listening) return;
         try {
           await pushUpdate();
         } catch {
@@ -197,6 +199,7 @@ export function startServer(root: string, port: number, bundle?: string): http.S
     process.exitCode = 1;
   });
   server.on("close", () => {
+    clearTimeout(pushTimer);
     void watcher?.close();
   });
 
