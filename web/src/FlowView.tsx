@@ -4,6 +4,7 @@ import {
   type EdgeProps,
   Handle,
   MarkerType,
+  MiniMap,
   type Node,
   type NodeProps,
   Panel,
@@ -27,6 +28,15 @@ const NODE_W = 204;
 const NODE_H = 152;
 const EDGE_COLOR = "#8A7B5C";
 const EDGE_HIT = "#B04A24";
+
+/** 缩略图节点配色：与 styles.css 状态令牌（--done/--wip/--planned/--blocked/--dropped）同色。 */
+const MINIMAP_COLOR: Record<string, string> = {
+  done: "#2E6B4E",
+  "in-progress": "#B04A24",
+  planned: "#8A8272",
+  blocked: "#A83A28",
+  dropped: "#A79E8C",
+};
 
 interface PlanNodeData extends Record<string, unknown> {
   wf: WorkflowNode;
@@ -558,6 +568,26 @@ export default function FlowView({
         }}
       >
         <Controls showInteractive={false} />
+        {nodes.length > 10 && (
+          <MiniMap
+            ariaLabel="画布缩略图"
+            bgColor="#F7F2E4"
+            className="trail-minimap"
+            maskColor="rgba(242, 236, 221, 0.62)"
+            maskStrokeColor="#B4AC97"
+            maskStrokeWidth={1}
+            nodeBorderRadius={2.5}
+            nodeColor={(n) => {
+              const wf = (n.data as { wf?: WorkflowNode }).wf;
+              return wf ? (MINIMAP_COLOR[wf.displayStatus] ?? "#8A8272") : "transparent";
+            }}
+            nodeStrokeColor="transparent"
+            pannable
+            position="bottom-left"
+            style={{ left: 48 }}
+            zoomable
+          />
+        )}
         <Legend />
         <ViewportSync selectedId={selectedId} fp={fp} hasNodes={rfNodes.length > 0} wrapRef={wrapRef} />
       </ReactFlow>

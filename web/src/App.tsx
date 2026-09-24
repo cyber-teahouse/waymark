@@ -150,6 +150,11 @@ export default function App() {
     return () => es.close();
   }, []);
 
+  // 标签页标题带项目名，多项目多标签并排时便于区分
+  useEffect(() => {
+    document.title = wf ? `${wf.project} · Waymark` : "Waymark 进度工作流";
+  }, [wf]);
+
   // 无数据时不渲染 Main——保证 Main 内全部 hooks 无条件执行（useHookAtTopLevel）
   if (!wf) {
     return <EmptyState />;

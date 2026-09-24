@@ -101,6 +101,7 @@ export function renderHubHtml(entries, generatedAt) {
           <span>${s.total} 节点</span><span class="c-done">完成 ${s.done}</span>
           <span class="c-wip">进行中 ${s.inProgress}</span><span>未开始 ${s.planned}</span>
           ${s.blocked > 0 ? `<span class="c-blocked">受阻 ${s.blocked}</span>` : ""}
+          ${s.dropped > 0 ? `<span class="c-dropped">放弃 ${s.dropped}</span>` : ""}
           ${s.warnings > 0 ? `<span class="c-warn">警示 ${s.warnings}</span>` : ""}
         </div>
       </div>
@@ -118,7 +119,7 @@ export function renderHubHtml(entries, generatedAt) {
 :root{
   --paper:#F2ECDD;--canvas:#F7F2E4;--card:#FFFDF6;
   --ink:#26332A;--ink-2:#5C4A3D;--ink-3:#77694F;--line:#E3DAC4;
-  --done:#2E6B4E;--wip:#B04A24;--planned:#8A8272;--blocked:#A83A28;--warn:#97690F;
+  --done:#2E6B4E;--wip:#B04A24;--planned:#8A8272;--blocked:#A83A28;--warn:#97690F;--dropped:#A79E8C;
   --done-bg:#E4EDE2;--warn-bg:#F3E9CF;
   --accent:#B04A24;--kraft:#EAE2CC;--kraft-deep:#E0D5B8;
   --grain:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMjQwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBudW1PY3RhdmVzPSIyIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIyNDAiIGhlaWdodD0iMjQwIiBmaWx0ZXI9InVybCgjbikiIG9wYWNpdHk9IjAuNiIvPjwvc3ZnPg==");
@@ -160,7 +161,7 @@ body::after{content:"";position:fixed;inset:0;z-index:999;pointer-events:none;ba
 .hub-bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-bottom:8px}
 .hub-bar i{display:block;height:100%;background:var(--done);border-radius:2px}
 .hub-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-2)}
-.c-done{color:var(--done)}.c-wip{color:var(--wip)}.c-blocked{color:var(--blocked)}.c-warn{color:var(--warn)}
+.c-done{color:var(--done)}.c-wip{color:var(--wip)}.c-blocked{color:var(--blocked)}.c-warn{color:var(--warn)}.c-dropped{color:var(--dropped)}
 .hub-open{border-top:1px solid var(--line);padding-top:10px;font-size:12.5px}
 .hub-open a{color:var(--accent);text-decoration:none;font-weight:600;letter-spacing:.02em;transition:opacity 140ms ease}
 .hub-open a:hover{opacity:.72}
