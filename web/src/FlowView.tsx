@@ -505,8 +505,10 @@ export default function FlowView({
       } as Edge;
     });
     // 把 onSelect/ready 注入节点数据（键盘/点击都能打开详情）
+    // 同步 RF selected：受控用法内部选择态不更新，搜索/键盘/点击选中的高亮全靠这里回注
     const withSelect = laid.nodes.map((n) => ({
       ...n,
+      selected: n.id === selectedId,
       data: { ...n.data, ready: readyIds.has(n.id), onSelect } as Record<string, unknown>,
     }));
     return { nodes: withSelect, edges: styled, trailIds: laid.trailIds };
