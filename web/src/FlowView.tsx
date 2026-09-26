@@ -292,6 +292,10 @@ function layout(
       position: { x: p.x - 62, y: p.y - PIN - 46 },
       selectable: false,
       draggable: false,
+      // 声明初始尺寸：受控用法不传 onNodesChange，RF 不回写 measured，
+      // MiniMap 依赖尺寸存在（nodeHasDimensions 回退链含 initialWidth/Height）才渲染节点
+      initialWidth: 140,
+      initialHeight: 24,
       data: { label: `${iterKey} · ${title}` },
     });
   });
@@ -303,6 +307,9 @@ function layout(
       type: "plan",
       // 节点盒以图钉为锚：钉心对准枝点，枝条停在钉缘
       position: { x: p.x - NODE_W / 2, y: p.y - PIN },
+      // 同营地节点：声明初始尺寸供 MiniMap 的 nodeHasDimensions 回退链命中
+      initialWidth: NODE_W,
+      initialHeight: NODE_H,
       data: { wf: n, rank: ranks.get(n.id) ?? 0 },
     };
   });
