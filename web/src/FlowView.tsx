@@ -10,6 +10,7 @@ import {
   Panel,
   Position,
   ReactFlow,
+  type ReactFlowInstance,
   useReactFlow,
 } from "@xyflow/react";
 import type React from "react";
@@ -401,32 +402,93 @@ function Legend() {
 /** 视口暂存 key：按页面路径隔离（file:// 多项目互不干扰）。 */
 const VIEWPORT_KEY = `waymark.viewport:${typeof window !== "undefined" ? window.location.pathname : ""}`;
 
-/** 视口同步（须挂在 <ReactFlow> 内）：
+/** 详情抽屉占位：宽屏右侧 420px、窄屏底部 72vh（与 styles.css 的 .detail 对齐），仅选中节点时存在。
+ *  RF 的 fitView 只认均匀 padding、表达不了单侧避让，fit 与选中移入统一走手动安全区。 */
+const FIT_MARGIN = 56;
+const MIN_FIT_ZOOM = 0.2; // 与 <ReactFlow minZoom> 对齐
+const MAX_FIT_ZOOM = 2;
+
+/** 画布可视安全区：四周边距 + 抽屉占掉的右侧/底部。 */
+function safeArea(rect: DOMRect, hasDrawer: boolean) {
+  const wide = rect.width > 720;
+  const dw = hasDrawer && wide ? 420 : 0;
+  // 底部抽屉 max-height:72vh 相对视口而非画布：折算进画布坐标（顶栏占高会让它比 rect*0.72 更深）
+  const dh =
+    hasDrawer && !wide ? Math.min(Math.max(rect.bottom - 0.28 * window.innerHeight, 0), rect.height) : 0;
+  return {
+    x: FIT_MARGIN,
+    y: FIT_MARGIN,
+    w: Math.max(rect.width - dw - FIT_MARGIN * 2, 120),
+    h: Math.max(rect.height - dh - FIT_MARGIN * 2, 120),
+  };
+}
+
+/** 把全部节点等比嵌进安全区并居中；抽屉打开时自动避让。 */
+function fitSafe(rf: ReactFlowInstance, wrap: HTMLDivElement, hasDrawer: boolean, duration: number) {
+  const bounds = rf.getNodesBounds(rf.getNodes());
+  if (bounds.width <= 0 || bounds.height <= 0) {
+    void rf.fitView({ padding: 0.15, duration });
+    return;
+  }
+  const s = safeArea(wrap.getBoundingClientRect(), hasDrawer);
+  const zoom = Math.min(
+    Math.max(Math.min(s.w / bounds.width, s.h / bounds.height), MIN_FIT_ZOOM),
+    MAX_FIT_ZOOM,
+  );
+  void rf.setViewport(
+    {
+      x: s.x + (s.w - bounds.width * zoom) / 2 - bounds.x * zoom,
+      y: s.y + (s.h - bounds.height * zoom) / 2 - bounds.y * zoom,
+      zoom,
+    },
+    { duration },
+  );
+}
+
+/** 视口同步（须挂在 <ReactFlow> 内）：首帧 fit（无暂存视口时）；
  *  画布内容（节点/边集合）变化时防抖重 fit；选中屏外节点时平滑移入视野。 */
 function ViewportSync({
   selectedId,
   fp,
   hasNodes,
   wrapRef,
+  fitOnInit,
 }: {
   selectedId: string | null;
   fp: string;
   hasNodes: boolean;
   wrapRef: React.RefObject<HTMLDivElement | null>;
+  fitOnInit: boolean;
 }) {
   const rf = useReactFlow();
   const prevFp = useRef(fp);
+  // 重 fit 防抖触发时读最新选中态（抽屉是否打开），不把它列为依赖以免选中变化触发重 fit
+  const selectedRef = useRef(selectedId);
+  useEffect(() => {
+    selectedRef.current = selectedId;
+  });
 
-  // 筛选/切换迭代后重新 fit（防抖 350ms：避免搜索逐字输入时连续缩放）
+  // 首帧 fit：rAF 等面板尺寸与节点入 store（节点带 initialWidth/Height，bounds 首帧即可算）。仅执行一次
+  useEffect(() => {
+    if (!fitOnInit || !hasNodes) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const raf = requestAnimationFrame(() => fitSafe(rf, wrap, selectedRef.current !== null, 0));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // 筛选/切换迭代后重新 fit（防抖 350ms：避免搜索逐字输入时连续缩放）；抽屉打开时避让安全区
   useEffect(() => {
     if (prevFp.current === fp) return;
     prevFp.current = fp;
     if (!hasNodes) return;
     const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.15, duration: 250 });
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      fitSafe(rf, wrap, selectedRef.current !== null, 250);
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [fp, hasNodes, rf]);
+  }, [fp, hasNodes, rf, wrapRef]);
 
   // 选中变化时：节点在视野外（或被详情面板遮住）才平滑移入，已在视野内则不动
   useEffect(() => {
@@ -439,21 +501,13 @@ function ViewportSync({
     const h = node.measured?.height ?? NODE_H;
     const cx = node.position.x + w / 2;
     const cy = node.position.y + h / 2;
-    const rect = wrap.getBoundingClientRect();
-    // 详情面板占位：宽屏右侧抽屉 420px，窄屏底部 72vh 图纸抽屉（与 styles.css 对齐）
-    const wide = rect.width > 720;
-    const M = 56;
-    const safe = {
-      x0: M,
-      y0: M,
-      x1: rect.width - (wide ? 420 : 0) - M,
-      y1: rect.height - (wide ? 0 : rect.height * 0.72) - M,
-    };
+    // 选中即抽屉打开，安全区必含抽屉占位
+    const s = safeArea(wrap.getBoundingClientRect(), true);
     const sx = cx * zoom + vx;
     const sy = cy * zoom + vy;
-    if (sx >= safe.x0 && sx <= safe.x1 && sy >= safe.y0 && sy <= safe.y1) return;
+    if (sx >= s.x && sx <= s.x + s.w && sy >= s.y && sy <= s.y + s.h) return;
     void rf.setViewport(
-      { x: (safe.x0 + safe.x1) / 2 - cx * zoom, y: (safe.y0 + safe.y1) / 2 - cy * zoom, zoom },
+      { x: s.x + s.w / 2 - cx * zoom, y: s.y + s.h / 2 - cy * zoom, zoom },
       { duration: 300 },
     );
   }, [selectedId, rf, wrapRef]);
@@ -562,9 +616,7 @@ export default function FlowView({
         edgeTypes={edgeTypes}
         nodesDraggable={false}
         nodesConnectable={false}
-        fitView={!savedViewport}
         defaultViewport={savedViewport}
-        fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, n) => onSelect(n.id)}
@@ -598,7 +650,13 @@ export default function FlowView({
           />
         )}
         <Legend />
-        <ViewportSync selectedId={selectedId} fp={fp} hasNodes={rfNodes.length > 0} wrapRef={wrapRef} />
+        <ViewportSync
+          selectedId={selectedId}
+          fp={fp}
+          hasNodes={rfNodes.length > 0}
+          wrapRef={wrapRef}
+          fitOnInit={!savedViewport}
+        />
       </ReactFlow>
       <Compass />
     </div>
