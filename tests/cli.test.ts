@@ -77,3 +77,17 @@ describe("acc 命令（单项验收勾选）", () => {
     err.mockRestore();
   });
 });
+
+describe("sync 守卫", () => {
+  it("非 waymark 项目目录（无 plan/overview.md）拒绝写数据并提示 init", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-guard-"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await runCli(["--root", root, "sync"]);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("不是 waymark 项目"));
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("waymark init"));
+    expect(process.exitCode).toBe(1);
+    expect(fs.existsSync(path.join(root, ".waymark"))).toBe(false);
+    err.mockRestore();
+    process.exitCode = undefined;
+  });
+});

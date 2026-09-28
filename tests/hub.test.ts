@@ -28,9 +28,10 @@ beforeAll(async () => {
 });
 
 describe("gatherHubData", () => {
-  it("aggregates synced/unsynced/empty projects by glob, skipping noise dirs", async () => {
+  it("aggregates synced/unsynced projects by glob, skipping noise and non-project dirs", async () => {
     const entries = gatherHubData([`${base}/*`]);
-    expect(entries.map((e) => e.name).sort()).toEqual(["alpha-proj", "beta-proj", "gamma-empty"]);
+    // gamma-empty（无 plan/ 与 .waymark/）不是项目目录，不再列入
+    expect(entries.map((e) => e.name).sort()).toEqual(["alpha-proj", "beta-proj"]);
     const alpha = entries.find((e) => e.name === "alpha-proj")!;
     expect(alpha.found).toBe(true);
     expect(alpha.stats!.total).toBe(3);

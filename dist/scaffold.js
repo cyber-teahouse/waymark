@@ -17,5 +17,5 @@ export function runInit(root) {
         fs.appendFileSync(gi, `${fs.existsSync(gi) && fs.statSync(gi).size > 0 ? "\n" : ""}${GITIGNORE_LINE}\n`, "utf8");
     }
     console.log("✔ 已生成 plan/ 骨架：overview.md + iterations/I1.md + milestones/M1-example.md");
-    console.log("  下一步：把现有框架文档内容拆入节点文件（可让 ZCode agent 按 design §3.2 规范拆解），然后运行 waymark check");
+    console.log("  下一步：把现有框架文档内容拆入节点文件（结构见 README「/plan 结构」章节），然后运行 waymark check");
 }

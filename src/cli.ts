@@ -44,6 +44,16 @@ export function createProgram(): Command {
   /** 子命令统一挂载 --root（agent 习惯把 flag 放在子命令之后；commander 全局选项只认前置）。 */
   const withRoot = (cmd: Command): Command => cmd.option("--root <dir>", "项目根目录（默认当前目录）");
 
+  /** plan/overview.md 是 waymark 项目的标识：缺失时拒绝写数据，
+   *  避免在错误目录静默生成 0 节点的 .waymark/ 骨架。 */
+  const ensurePlanOverview = (root: string): boolean => {
+    if (fs.existsSync(path.join(root, "plan", "overview.md"))) return true;
+    console.error(`✖ 未找到 ${path.join(root, "plan", "overview.md")}——这不是 waymark 项目`);
+    console.error("  先运行 waymark init 生成 plan/ 骨架，或用 --root 指定项目根目录");
+    process.exitCode = 1;
+    return false;
+  };
+
   withRoot(program.command("check"))
     .description("校验 /plan 文档规范")
     .action((_opts: unknown, cmd: Command) => {
@@ -65,6 +75,7 @@ export function createProgram(): Command {
     .description("解析 /plan + 代码证据 → 生成 .waymark/workflow.json")
     .action(async (_opts: unknown, cmd: Command) => {
       const root = rootOf(cmd);
+      if (!ensurePlanOverview(root)) return;
       const { workflow, issues } = await buildWorkflow(root);
       writeWorkflow(root, workflow);
       const s = workflow.stats;
@@ -223,6 +234,7 @@ export function createProgram(): Command {
       const stale = !missing && planNewerThan(root, wfFile);
       if (missing || stale) {
         if (opts.fresh) {
+          if (!ensurePlanOverview(root)) return;
           try {
             const { workflow, issues } = await buildWorkflow(root);
             writeWorkflow(root, workflow);

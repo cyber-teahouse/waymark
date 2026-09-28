@@ -3,6 +3,16 @@ import path from "node:path";
 import fg from "fast-glob";
 /** 聚合页无意义的目录：隐藏目录与依赖目录直接跳过。 */
 const NOISE_DIRS = new Set(["node_modules"]);
+/** 项目目录候选：有 .waymark/，或 plan/ 呈现 waymark 结构（overview.md 或 milestones/、iterations/ 子目录）。
+ *  仅按目录名「plan」误判太多（源码仓自己的 src/plan、dist/plan 就是反例），普通目录不列入总览。 */
+function isProjectDir(dir) {
+    if (fs.existsSync(path.join(dir, ".waymark")))
+        return true;
+    const plan = path.join(dir, "plan");
+    return (fs.existsSync(path.join(plan, "overview.md")) ||
+        fs.existsSync(path.join(plan, "milestones")) ||
+        fs.existsSync(path.join(plan, "iterations")));
+}
 /** 按目录 glob 聚合各项目的 Waymark 数据。 */
 export function gatherHubData(patterns) {
     const dirs = new Set();
@@ -10,6 +20,8 @@ export function gatherHubData(patterns) {
         for (const d of fg.sync(p, { onlyDirectories: true, absolute: true, suppressErrors: true })) {
             const name = path.basename(d);
             if (name.startsWith(".") || NOISE_DIRS.has(name))
+                continue;
+            if (!isProjectDir(d))
                 continue;
             dirs.add(d);
         }

@@ -86,6 +86,12 @@ export async function statusReport(root: string, opts: StatusOptions = {}): Prom
     throw new Error("未找到 .waymark/workflow.json，请先运行 waymark sync（或使用 --fresh 自动同步）");
   }
   if (missing || (stale && opts.fresh)) {
+    // 自动 sync 前置守卫：无 plan/overview.md 的目录不是 waymark 项目，拒绝静默生成空数据
+    if (!fs.existsSync(path.join(root, "plan", "overview.md"))) {
+      throw new Error(
+        "未找到 plan/overview.md——这不是 waymark 项目，请先运行 waymark init（或用 --root 指定项目根目录）",
+      );
+    }
     const { buildWorkflow } = await import("../sync/build.js");
     const { writeWorkflow } = await import("../render/render.js");
     const { workflow, issues } = await buildWorkflow(root);
