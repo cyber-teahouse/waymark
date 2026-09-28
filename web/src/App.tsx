@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-/** 进度环：轨道 var(--line)，进度弧 var(--accent)，加载时 400ms 画出（respect prefers-reduced-motion）。 */
+/** 进度环：轨道 var(--line)，进度弧 var(--accent)，加载/刷新时以 900ms iOS 弹簧曲线画出（respect prefers-reduced-motion）。 */
 function ProgressRing({ percent }: { percent: number }) {
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {

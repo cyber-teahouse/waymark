@@ -498,7 +498,8 @@ function ViewportSync({
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // 筛选/切换迭代后重新 fit（防抖 350ms：避免搜索逐字输入时连续缩放）；抽屉打开时避让安全区
+  // 筛选/切换迭代后重新 fit（防抖 350ms：避免搜索逐字输入时连续缩放）；
+  // 重 fit 相机 420ms 长滑行（Apple Maps 式滑翔，可被后续交互打断）；抽屉打开时避让安全区
   useEffect(() => {
     if (prevFp.current === fp) return;
     prevFp.current = fp;
@@ -506,12 +507,13 @@ function ViewportSync({
     const timer = window.setTimeout(() => {
       const wrap = wrapRef.current;
       if (!wrap) return;
-      fitSafe(rf, wrap, selectedRef.current !== null, 250);
+      fitSafe(rf, wrap, selectedRef.current !== null, 420);
     }, 350);
     return () => window.clearTimeout(timer);
   }, [fp, hasNodes, rf, wrapRef]);
 
-  // 选中变化时：节点在视野外（或被详情面板遮住）才平滑移入，已在视野内则不动
+  // 选中变化时：节点在视野外（或被详情面板遮住）才平滑移入，已在视野内则不动；
+  // 480ms 长滑行保持地图式滑翔感，快速 j/k 连按时新指令直接接管当前过渡
   useEffect(() => {
     if (!selectedId) return;
     const wrap = wrapRef.current;
@@ -529,7 +531,7 @@ function ViewportSync({
     if (sx >= s.x && sx <= s.x + s.w && sy >= s.y && sy <= s.y + s.h) return;
     void rf.setViewport(
       { x: s.x + s.w / 2 - cx * zoom, y: s.y + s.h / 2 - cy * zoom, zoom },
-      { duration: 300 },
+      { duration: 480 },
     );
   }, [selectedId, rf, wrapRef]);
 
