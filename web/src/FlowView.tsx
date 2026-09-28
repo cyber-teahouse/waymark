@@ -30,6 +30,14 @@ const NODE_H = 152;
 const EDGE_COLOR = "#8A7B5C";
 const EDGE_HIT = "#B04A24";
 
+/** 静态连接点：钉心（NODE_W/2, 17）。声明后 parseHandles 在节点入 store 时即生成
+ *  handleBounds——连线不再依赖 ResizeObserver（隐藏页/后台标签/截图导出场景首帧即可渲染）。
+ *  坐标与 styles.css 的 .wp-handle 钉心定位一致，实测接管后连线不跳动。 */
+const PIN_HANDLES: NonNullable<Node["handles"]> = [
+  { type: "source", position: Position.Right, x: 99, y: 14, width: 6, height: 6 },
+  { type: "target", position: Position.Left, x: 99, y: 14, width: 6, height: 6 },
+];
+
 /** 缩略图节点配色：与 styles.css 状态令牌（--done/--wip/--planned/--blocked/--dropped）同色。 */
 const MINIMAP_COLOR: Record<string, string> = {
   done: "#2E6B4E",
@@ -91,7 +99,7 @@ function PlanNode({ data, selected }: NodeProps) {
       role="button"
       tabIndex={0}
       aria-label={aria}
-      style={{ animationDelay: `${Math.min(rank, 12) * 90}ms` }}
+      style={{ animationDelay: `${Math.min(rank, 12) * 80}ms` }}
       onClick={() => onSelect(wf.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -142,8 +150,10 @@ const nodeTypes = { plan: PlanNode, camp: CampDecor };
 /** 营地旗标：迭代分界处的小旗，非交互。 */
 function CampDecor({ data }: NodeProps) {
   const { label } = data as { label: string };
+  // 首帧入场：旗标弹性竖起（与节点/步道同一波次）
+  const [enter] = useState(() => !entrancePlayed);
   return (
-    <div className="camp" aria-hidden="true">
+    <div className={enter ? "camp enter" : "camp"} aria-hidden="true">
       <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
         <path d="M1,13 V1 M1,1 L11,3.5 L1,6 Z" className="camp-flag" />
       </svg>
@@ -308,6 +318,7 @@ function layout(
       type: "plan",
       // 节点盒以图钉为锚：钉心对准枝点，枝条停在钉缘
       position: { x: p.x - NODE_W / 2, y: p.y - PIN },
+      handles: PIN_HANDLES,
       // 同营地节点：声明初始尺寸供 MiniMap 的 nodeHasDimensions 回退链命中
       initialWidth: NODE_W,
       initialHeight: NODE_H,
@@ -330,7 +341,8 @@ function layout(
       target: to,
       type: "trail",
       selectable: false,
-      data: { trail: true, walked: reached(f.displayStatus) },
+      // order = 父节点在步道上的位置：入场描绘按此错峰（与节点落下节奏对齐）
+      data: { trail: true, walked: reached(f.displayStatus), order: fi },
     });
   }
   trailEdges.sort(
@@ -356,15 +368,24 @@ function layout(
 }
 
 /** 步道线（思维导图枝条）：已行走 = 橙色实线（纸色 halo 衬底），
- *  未行走 = 淡色圆点虚线。S 形曲线连接父子钉心。 */
+ *  未行走 = 淡色圆点虚线。S 形曲线连接父子钉心。
+ *  首帧入场：已行走段沿步道顺序描绘（dashoffset），未行走段与衬底淡入。 */
 function TrailEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProps) {
-  const walked = (data as { walked?: boolean } | undefined)?.walked;
+  const { walked, order } = (data ?? {}) as { walked?: boolean; order?: number };
+  // 与 PlanNode 同理：挂载瞬间定格是否播入场动画
+  const [enter] = useState(() => !entrancePlayed);
   const dx = Math.max(targetX - sourceX, 60);
   const d = `M ${sourceX},${sourceY} C ${sourceX + dx * 0.55},${sourceY} ${targetX - dx * 0.45},${targetY} ${targetX},${targetY}`;
+  const delay = enter ? { animationDelay: `${(order ?? 0) * 90 + 120}ms` } : undefined;
   return (
     <>
-      {walked && <path d={d} className="trail-halo" />}
-      <path d={d} className={walked ? "trail-walked" : "trail-path"} />
+      {walked && <path d={d} className={enter ? "trail-halo enter" : "trail-halo"} style={delay} />}
+      <path
+        d={d}
+        className={`${walked ? "trail-walked" : "trail-path"}${enter ? " enter" : ""}`}
+        pathLength={walked ? 1 : undefined}
+        style={delay}
+      />
     </>
   );
 }

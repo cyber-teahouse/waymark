@@ -32,6 +32,9 @@
   --font-mono: "Cascadia Code", Consolas, "Courier New", monospace;
   --shadow-lift: 0 6px 16px -8px rgba(38, 51, 42, 0.35);
   --shadow-print: 1.5px 1.5px 0 rgba(38, 51, 42, 0.10);
+  /* 缓动令牌：顺滑减速 / 轻弹性（入场落定、选中 pop 用） */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* 状态 → CSS 变量映射：节点 / 徽标 / 进度条共用 */
@@ -97,7 +100,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ring-track { fill: none; stroke: var(--line); stroke-width: 3.5; stroke-dasharray: 2.6 3.4; stroke-linecap: round; }
 .ring-arc {
   fill: none; stroke: var(--accent); stroke-width: 3.5; stroke-linecap: round;
-  transition: stroke-dashoffset 500ms ease-out;
+  transition: stroke-dashoffset 650ms var(--ease-out);
 }
 .ring-num {
   font-family: var(--font-display); font-weight: 700; font-size: 14px;
@@ -111,9 +114,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   appearance: none; cursor: pointer; font-family: inherit;
   background: var(--card); border: 1px solid var(--line);
   border-radius: 999px; padding: 3px 10px;
-  transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease;
+  transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease, transform 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out);
 }
-.chip:hover { opacity: 0.72; }
+.chip:hover { opacity: 0.72; transform: translateY(-1px); box-shadow: var(--shadow-print); }
 .chip.active {
   border: 1px dashed var(--st, var(--ink-3));
   background: var(--st-bg, var(--planned-bg));
@@ -258,8 +262,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   cursor: pointer;
 }
 /* 入场动画只在首次加载播放（.enter 仅首帧挂载的节点携带），筛选/切换重挂载不播 */
-.wp.enter { animation: wp-in 480ms ease-out backwards; }
-@keyframes wp-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* 图钉落下：从上方坠入，带轻弹性落定；以钉心为原点缩放 */
+.wp.enter {
+  animation: wp-in 560ms var(--ease-spring) backwards;
+  transform-origin: 50% 17px;
+}
+@keyframes wp-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.82); }
+  55% { opacity: 1; }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 @media (prefers-reduced-motion: reduce) { .wp.enter { animation: none; } }
 
 /* 图钉：泪滴形（圆 + 45° 折角），状态着色，进行中呼吸脉冲 */
@@ -281,10 +293,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .wp.st-done .wp-pin { background: var(--done); border-color: var(--done); }
 .wp.st-done .wp-glyph { color: #fff; }
-.wp.st-in-progress .wp-pin { animation: wp-pulse 1.6s ease-in-out infinite; }
+/* 进行中：涟漪式呼吸——光环向外扩散并淡出，图钉微微起伏 */
+.wp.st-in-progress .wp-pin { animation: wp-pulse 2.4s ease-in-out infinite; }
 @keyframes wp-pulse {
-  0%, 100% { box-shadow: var(--shadow-print); }
-  50% { box-shadow: 0 0 0 7px rgba(176, 74, 36, 0.18); }
+  0%, 100% {
+    box-shadow: var(--shadow-print), 0 0 0 0 rgba(176, 74, 36, 0.28);
+    transform: rotate(-45deg) scale(1);
+  }
+  50% {
+    box-shadow: var(--shadow-print), 0 0 0 8px rgba(176, 74, 36, 0);
+    transform: rotate(-45deg) scale(1.07);
+  }
 }
 .wp.cycle .wp-pin { border-style: dashed; border-color: var(--blocked); }
 
@@ -300,7 +319,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .wp:hover .wp-pin { box-shadow: var(--shadow-lift); }
 .wp:hover .wp-label { box-shadow: var(--shadow-lift); }
-.wp.selected .wp-pin { border-color: var(--accent); box-shadow: 0 0 0 3px var(--wip-bg), var(--shadow-lift); }
+.wp.selected .wp-pin {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--wip-bg), var(--shadow-lift);
+  /* 选中瞬间弹性一震（保留 -45° 折角旋转） */
+  animation: pin-pop 300ms var(--ease-spring);
+}
+@keyframes pin-pop {
+  from { transform: rotate(-45deg) scale(0.84); }
+  to { transform: rotate(-45deg) scale(1); }
+}
 .wp.selected .wp-label { border-color: var(--accent); outline: 1.5px dashed var(--accent); outline-offset: 2px; }
 .wp:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
 
@@ -332,7 +360,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .node-chip.ready { background: var(--done-bg); color: var(--done); border-color: rgba(46, 107, 78, 0.3); }
 .warn-callout.ready { background: var(--done-bg); border-color: rgba(46, 107, 78, 0.3); }
 
-.wp .react-flow__handle { opacity: 0; pointer-events: none; }
+/* 连接点钉心定位：与 FlowView 的 PIN_HANDLES 静态坐标一致，实测接管后连线不跳动 */
+.wp .react-flow__handle {
+  opacity: 0; pointer-events: none;
+  left: 50%; right: auto; top: 17px; bottom: auto;
+  transform: translate(-50%, -50%);
+}
 
 /* ============ 详情面板（巡查记录单） ============ */
 .detail {
@@ -343,11 +376,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   box-shadow: -10px 0 28px -18px rgba(38, 51, 42, 0.4);
   overflow-y: auto;
   padding: 22px 22px 20px;
-  animation: panel-in 180ms ease-out;
+  animation: panel-in 240ms var(--ease-out);
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
 .detail:focus { outline: none; }
-@keyframes panel-in { from { transform: translateX(24px); } to { transform: translateX(0); } }
+@keyframes panel-in { from { transform: translateX(28px); } to { transform: translateX(0); } }
 .detail::-webkit-scrollbar { width: 6px; }
 .detail::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 .detail::-webkit-scrollbar-track { background: transparent; }
@@ -539,14 +572,14 @@ button.acc-row:disabled { cursor: wait; opacity: 0.6; }
     border-radius: 12px 12px 0 0;
     padding: 16px;
     box-shadow: 0 -8px 24px rgba(38, 51, 42, 0.18);
-    animation: sheet-in 200ms ease-out;
+    animation: sheet-in 260ms var(--ease-out);
   }
   .legend { display: none; } /* 窄屏空间有限，图例隐藏（状态以色彩与节点芯片表达） */
   .compass { display: none; } /* 窄屏隐藏罗盘装饰 */
   .react-flow__minimap { display: none; } /* 窄屏隐藏缩略图 */
 }
 
-@keyframes sheet-in { from { transform: translateY(28px); } to { transform: translateY(0); } }
+@keyframes sheet-in { from { transform: translateY(34px); } to { transform: translateY(0); } }
 
 /* ============ 详情面板操作区（认领开工 / 标记完成） ============ */
 .act-row {
@@ -615,6 +648,21 @@ button.acc-row:disabled { cursor: wait; opacity: 0.6; }
   stroke-linecap: round;
   opacity: 0.55;
 }
+/* 首帧入场：已行走段描绘而出（pathLength=1 归一化 dash），未行走段与衬底淡入 */
+.trail-walked.enter {
+  stroke-dasharray: 1;
+  animation: trail-draw 480ms var(--ease-out) backwards;
+}
+@keyframes trail-draw {
+  from { stroke-dashoffset: 1; }
+}
+.trail-path.enter,
+.trail-halo.enter {
+  animation: trail-fade 420ms ease-out backwards;
+}
+@keyframes trail-fade {
+  from { opacity: 0; }
+}
 .legend-trail {
   display: inline-block;
   width: 22px;
@@ -636,6 +684,15 @@ button.acc-row:disabled { cursor: wait; opacity: 0.6; }
   box-shadow: var(--shadow-print);
 }
 .camp-flag { fill: var(--accent); stroke: var(--accent-deep); }
+/* 首帧入场：旗标以旗杆底为原点弹性竖起，略迟于首批图钉 */
+.camp.enter {
+  animation: camp-in 360ms var(--ease-spring) 240ms backwards;
+  transform-origin: left bottom;
+}
+@keyframes camp-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
 .compass {
   position: absolute; right: 18px; bottom: 14px; z-index: 5;
   pointer-events: none; opacity: 0.85;
@@ -668,9 +725,10 @@ button.acc-row:disabled { cursor: wait; opacity: 0.6; }
   background: var(--card); border: 1px solid var(--line); border-radius: 10px;
   box-shadow: var(--shadow-lift);
   padding: 12px 14px 13px;
-  animation: help-in 140ms ease-out;
+  animation: help-in 180ms var(--ease-out);
+  transform-origin: top right;
 }
-@keyframes help-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes help-in { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .help-title {
   margin-bottom: 9px;
   font-family: var(--font-mono); font-size: 10px;
