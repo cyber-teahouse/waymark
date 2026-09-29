@@ -4,8 +4,23 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { getWorkflowCacheStats, resetWorkflowCache } from "../src/sync/workflowCache.js";
 import { WorkflowJsonSchema } from "../src/types.js";
-import { collectEvidenceWatchTargets, startServer } from "../src/ui/server.js";
+import { collectEvidenceWatchTargets, startServer, WATCH_OPTIONS } from "../src/ui/server.js";
 import { makeSampleProject } from "./helpers.js";
+
+describe("WATCH_OPTIONS（pnpm monorepo 符号链接扩散回归）", () => {
+  it("不跟随符号链接，且忽略 node_modules（正反斜杠通吃、前缀不误伤）", () => {
+    // 背景：pnpm 的包内 node_modules 全是符号链接/junction，followSymlinks 默认 true
+    // 会把监听扩散进 .pnpm 虚拟存储（数十万次 stat、事件循环饿死 HTTP）
+    expect(WATCH_OPTIONS.followSymlinks).toBe(false);
+    expect(WATCH_OPTIONS.ignoreInitial).toBe(true);
+    const ignored = WATCH_OPTIONS.ignored as RegExp;
+    expect(ignored.test("E:/proj/packages/core/node_modules/dep/index.js")).toBe(true);
+    expect(ignored.test("E:\\proj\\packages\\core\\node_modules\\dep")).toBe(true);
+    expect(ignored.test("/repo/node_modules")).toBe(true);
+    expect(ignored.test("packages/core/src/index.ts")).toBe(false);
+    expect(ignored.test("packages/node_modulesx/src.ts")).toBe(false);
+  });
+});
 
 describe("collectEvidenceWatchTargets", () => {
   it("derives existing static dirs from evidence globs", async () => {

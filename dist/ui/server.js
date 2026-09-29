@@ -7,6 +7,17 @@ import { collectEvidenceWatchTargets, loadBundle, renderWorkflowHtml } from "../
 import { getWorkflowCached } from "../sync/workflowCache.js";
 export { collectEvidenceWatchTargets } from "../render/render.js";
 const MAX_BODY_BYTES = 1_000_000;
+/** chokidar 监听参数（导出供回归测试固定）。
+ *  pnpm monorepo 致命坑：包内 node_modules 是符号链接/junction，默认 followSymlinks
+ *  会把监听扩散进 .pnpm 虚拟存储（数十万次 stat——初始扫描数分钟、阻塞事件循环饿死
+ *  HTTP，实测 deepseek-harness 上页面请求 30s 无响应）。证据语义本就忽略
+ *  node_modules（DEFAULT_IGNORES），监听对齐同一口径。 */
+export const WATCH_OPTIONS = {
+    ignoreInitial: true,
+    followSymlinks: false,
+    ignored: /(^|[\\/])node_modules([\\/]|$)/,
+    awaitWriteFinish: { stabilityThreshold: 200 },
+};
 function readBody(req) {
     return new Promise((resolve, reject) => {
         let size = 0;
@@ -165,10 +176,7 @@ export function startServer(root, port, bundle) {
     });
     const uniqueTargets = [...new Set(watchTargets)];
     server.on("listening", () => {
-        watcher = watch(uniqueTargets, {
-            ignoreInitial: true,
-            awaitWriteFinish: { stabilityThreshold: 200 },
-        });
+        watcher = watch(uniqueTargets, WATCH_OPTIONS);
         watcher.on("all", () => {
             clearTimeout(pushTimer);
             pushTimer = setTimeout(async () => {
