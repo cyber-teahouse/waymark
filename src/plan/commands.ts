@@ -17,6 +17,20 @@ function splitFrontmatter(raw: string): { fm: string; body: string } {
   return { fm: m[1], body: raw.slice(m.index + m[0].length) };
 }
 
+/** 读计划文档源码：剥 UTF-8 BOM（Windows 编辑器另存常见，留着会让 frontmatter 定位失败），
+ *  CRLF 归一为 LF 供行级处理；crlf 标记原文件主流行尾，写回时经 writePlanSource 还原。 */
+function loadPlanSource(abs: string): { text: string; crlf: boolean } {
+  const raw = fs.readFileSync(abs, "utf8").replace(/^\uFEFF/, "");
+  const crlfCount = (raw.match(/\r\n/g) ?? []).length;
+  const lfCount = (raw.match(/\n/g) ?? []).length - crlfCount;
+  return { text: raw.replace(/\r\n/g, "\n"), crlf: crlfCount > lfCount };
+}
+
+/** 行尾保真写回：原文件以 CRLF 为主则整体按 CRLF 写出，状态变更不会把 Windows 文件改成混合行尾。 */
+function writePlanSource(abs: string, text: string, crlf: boolean): void {
+  fs.writeFileSync(abs, crlf ? text.replace(/\n/g, "\r\n") : text, "utf8");
+}
+
 function today(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -56,7 +70,7 @@ export function markDone(
   const doc = plan.nodes.find((n) => n.fm.id === id);
   if (!doc) throw new Error(`未找到节点: ${id}`);
   const abs = path.join(root, doc.file);
-  const raw = fs.readFileSync(abs, "utf8");
+  const { text: raw, crlf } = loadPlanSource(abs);
   const { fm, body } = splitFrontmatter(raw);
 
   const nextFm = (() => {
@@ -71,7 +85,7 @@ export function markDone(
   const note = opts.note?.trim().replace(/\r?\n+/g, " ");
   const nextBody = note ? insertCompletionNote(body, date, note) : body;
 
-  fs.writeFileSync(abs, `---\n${nextFm}\n---\n${nextBody}`, "utf8");
+  writePlanSource(abs, `---\n${nextFm}\n---\n${nextBody}`, crlf);
 
   // 护栏警告：不阻止完成，但把可疑之处亮出来（对 agent 误操作的主要防线）
   const warnings: string[] = [];
@@ -97,10 +111,10 @@ export function startNode(root: string, id: string): { file: string; warnings: s
     throw new Error(`${id} 当前状态为 ${doc.fm.status}，仅 planned 节点可认领开工`);
   }
   const abs = path.join(root, doc.file);
-  const raw = fs.readFileSync(abs, "utf8");
+  const { text: raw, crlf } = loadPlanSource(abs);
   const { fm, body } = splitFrontmatter(raw);
   const nextFm = fm.replace(/^status:\s*.*$/m, "status: in-progress");
-  fs.writeFileSync(abs, `---\n${nextFm}\n---\n${body}`, "utf8");
+  writePlanSource(abs, `---\n${nextFm}\n---\n${body}`, crlf);
   const warnings: string[] = [];
   const unmet = unmetDeps(plan, doc.fm.deps);
   if (unmet.length)
@@ -137,7 +151,7 @@ function changeStatus(
   const doc = plan.nodes.find((n) => n.fm.id === id);
   if (!doc) throw new Error(`未找到节点: ${id}`);
   const abs = path.join(root, doc.file);
-  const raw = fs.readFileSync(abs, "utf8");
+  const { text: raw, crlf } = loadPlanSource(abs);
   const { fm, body } = splitFrontmatter(raw);
 
   const warnings: string[] = [];
@@ -154,7 +168,7 @@ function changeStatus(
   }
   const nextFm = fm.replace(/^status:\s*.*$/m, `status: ${to}`);
   const nextBody = note ? insertCompletionNote(body, date, `[${logTag}] ${note}`) : body;
-  fs.writeFileSync(abs, `---\n${nextFm}\n---\n${nextBody}`, "utf8");
+  writePlanSource(abs, `---\n${nextFm}\n---\n${nextBody}`, crlf);
   return { file: doc.file, warnings };
 }
 
@@ -217,7 +231,7 @@ export function toggleAcceptance(
     }
   }
   const abs = path.join(root, doc.file);
-  const raw = fs.readFileSync(abs, "utf8");
+  const { text: raw, crlf } = loadPlanSource(abs);
   const { fm, body } = splitFrontmatter(raw);
 
   // 只在 acceptance: 块列表内计数与翻转；遇到下一个顶层键即块结束
@@ -245,7 +259,7 @@ export function toggleAcceptance(
       `${id} 的 acceptance 写法不规范（声明 ${total} 项，块列表中只识别到 ${itemNo} 项）——请使用 "- [ ] 文本" 块列表写法`,
     );
   }
-  fs.writeFileSync(abs, `---\n${nextFm}\n---\n${body}`, "utf8");
+  writePlanSource(abs, `---\n${nextFm}\n---\n${body}`, crlf);
 
   const acceptance = parseAcceptance(doc.fm.acceptance).map((a, i) =>
     targets.has(i + 1) ? { ...a, done: !a.done } : a,

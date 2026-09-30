@@ -80,7 +80,8 @@ export function parseNodeFile(root: string, relFile: string): { doc?: PlanDoc; i
   const abs = path.join(root, relFile);
   let raw: string;
   try {
-    raw = fs.readFileSync(abs, "utf8");
+    // 剥 UTF-8 BOM——Windows 编辑器另存常见，留着会让 frontmatter 定位与校验全盘失败
+    raw = fs.readFileSync(abs, "utf8").replace(/^\uFEFF/, "");
   } catch (e) {
     return { issue: { level: "error", file: relFile, message: `读取失败: ${(e as Error).message}` } };
   }
@@ -111,7 +112,7 @@ export function parseIterationFile(root: string, relFile: string): { doc?: Itera
   const abs = path.join(root, relFile);
   let parsed: matter.GrayMatterFile<string>;
   try {
-    parsed = matter(preprocessYaml(fs.readFileSync(abs, "utf8")));
+    parsed = matter(preprocessYaml(fs.readFileSync(abs, "utf8").replace(/^\uFEFF/, "")));
   } catch (e) {
     return { issue: { level: "error", file: relFile, message: `迭代文件解析失败: ${(e as Error).message}` } };
   }
@@ -142,7 +143,10 @@ export function parseOverview(root: string): { doc?: OverviewDoc; issues: PlanIs
   }
   let lines: string[];
   try {
-    lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
+    lines = fs
+      .readFileSync(abs, "utf8")
+      .replace(/^\uFEFF/, "")
+      .split(/\r?\n/);
   } catch (e) {
     issues.push({ level: "error", file: relFile, message: `读取失败: ${(e as Error).message}` });
     return { issues };

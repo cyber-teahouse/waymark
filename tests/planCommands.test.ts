@@ -311,3 +311,56 @@ describe("toggleAcceptance", () => {
     expect(after.replace("- [x] 刷新令牌", "- [ ] 刷新令牌")).toBe(before);
   });
 });
+
+describe("行尾与 BOM 保真（Windows 健壮性）", () => {
+  it("CRLF 文件经 markDone / acc 写回后保持 CRLF，不产生混合行尾", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-crlf-"));
+    makeTinyProject(root);
+    const bFile = path.join(root, "plan", "milestones", "B.md");
+    fs.writeFileSync(bFile, fs.readFileSync(bFile, "utf8").replace(/\n/g, "\r\n"), "utf8");
+
+    markDone(root, "B-app", { note: "完成应用层开发", date: "2026-09-21" });
+    let text = fs.readFileSync(bFile, "utf8");
+    expect(text).toContain("- 2026-09-21 完成应用层开发");
+    expect(text).not.toMatch(/(?<!\r)\n/);
+
+    toggleAcceptance(root, "B-app", [1]);
+    text = fs.readFileSync(bFile, "utf8");
+    expect(text).toContain("[x] 全部就绪");
+    expect(text).not.toMatch(/(?<!\r)\n/);
+  });
+
+  it("CRLF 文件经 startNode / block 写回后保持 CRLF", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-crlf2-"));
+    makeTinyProject(root);
+    const bFile = path.join(root, "plan", "milestones", "B.md");
+    fs.writeFileSync(bFile, fs.readFileSync(bFile, "utf8").replace(/\n/g, "\r\n"), "utf8");
+
+    startNode(root, "B-app");
+    let text = fs.readFileSync(bFile, "utf8");
+    expect(text).toMatch(/^status: in-progress\r$/m);
+    expect(text).not.toMatch(/(?<!\r)\n/);
+
+    blockNode(root, "B-app", { note: "等待接口", date: "2026-09-21" });
+    text = fs.readFileSync(bFile, "utf8");
+    expect(text).toContain("- 2026-09-21 [blocked] 等待接口");
+    expect(text).not.toMatch(/(?<!\r)\n/);
+  });
+
+  it("UTF-8 BOM 文件可正常解析与状态变更（BOM 剥离、无解析 issue）", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-bom-"));
+    makeTinyProject(root);
+    const bFile = path.join(root, "plan", "milestones", "B.md");
+    fs.writeFileSync(bFile, `\uFEFF${fs.readFileSync(bFile, "utf8")}`, "utf8");
+
+    const plan = loadPlan(root);
+    expect(plan.nodes.some((n) => n.fm.id === "B-app")).toBe(true);
+    expect(plan.issues).toEqual([]);
+
+    markDone(root, "B-app", { note: "BOM 文件收尾", date: "2026-09-21" });
+    const text = fs.readFileSync(bFile, "utf8");
+    expect(text.startsWith("\uFEFF")).toBe(false);
+    expect(text).toMatch(/^status: done$/m);
+    expect(text).toContain("- 2026-09-21 BOM 文件收尾");
+  });
+});
