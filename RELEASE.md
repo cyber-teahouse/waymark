@@ -24,7 +24,7 @@
 ### 2. 验证
 
 ```bash
-npm test        # typecheck + 87 个测试；version 测试会校验 getVersion() 与 package.json 一致
+npm test        # biome + typecheck + vitest 全量；version 测试会校验 getVersion() 与 package.json 一致
 ```
 
 测试不过不发版。
@@ -54,6 +54,18 @@ git status -sb                     # 应为 main...origin/main（无 ahead/behin
 git ls-remote --tags origin | tail -3   # 确认 tag 已上远端
 ```
 
+### 6. npm 发布（自 0.3.2 起）
+
+```bash
+npm whoami                      # 未登录先 npm login（开 2FA 备好验证器）
+npm publish                     # 打包当前工作区；自动跑 prepublishOnly 测试 + prepare 重建 dist
+npm view waymark-cli version    # 应返回刚发的版本号
+```
+
+- 发布前确认工作区干净、HEAD 在目标版本提交上（npm 打包看工作区，不看 tag）
+- 回滚：72 小时内 `npm unpublish waymark-cli@<版本>`；超时只能 `npm deprecate` + 立即发修复版
+- npm 首发的完整实测记录见 [docs/npm-publish.md](docs/npm-publish.md)
+
 ## Windows 环境注意事项
 
 本机（Windows）的 git 配了 `credential.helperSelector`，在非交互终端推送时会弹窗并被取消，报 `User cancelled dialog`。两种解法：
@@ -72,7 +84,7 @@ git ls-remote --tags origin | tail -3   # 确认 tag 已上远端
 
 | 版本 | 日期 | 要点 |
 |------|------|------|
-| 0.3.2 | 2026-10-01 | 动画对标 Apple（iOS 弹簧曲线/按压反馈/相机滑翔）、图钉入场与步道描绘、CLI 三连修（sync 项目守卫/hub 目录过滤/init 文案）、pnpm monorepo 下 ui 监听性能修复；npm 首次发布（waymark-cli） |
+| 0.3.2 | 2026-10-01 | 动画对标 Apple（iOS 弹簧曲线/按压反馈/相机滑翔）、图钉入场与步道描绘、CLI 三连修（sync 项目守卫/hub 目录过滤/init 文案）、pnpm monorepo 下 ui 监听性能修复、计划文档写入行尾保真（CRLF）与 BOM 兼容、UI Host 白名单（防 DNS rebinding）；npm 首次发布（waymark-cli） |
 | 0.3.1 | 2026-09-27 | 单项验收勾选贯穿 CLI/MCP/UI、SSE 局部刷新、MiniMap 画布导航，UI 三连修（缩略图空白/选中高亮/抽屉避让） |
 | 0.3.0 | 2026-09-23 | 思维导图式布局（主亲树 + S 形枝条）、waymark status 终端一览、进度页键盘导航与搜索匹配跳转、web 端类型检查门禁 |
 | 0.2.2 | 2026-09-23 | 步道图视觉系统（任务控制台 + hub 总览统一）、block/drop/reopen 状态机、UI 写操作（认领开工/标记完成）、CI 矩阵与 dist 新鲜度校验 |

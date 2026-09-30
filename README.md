@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="README.en.md">English</a> | 简体中文
+</p>
+
+<p align="center">
   <img src="assets/banner.svg" alt="waymark banner" width="960">
 </p>
 
@@ -160,7 +164,7 @@ src/
 ├── hub/            # 多项目聚合总览页
 └── version.ts      # 版本号唯一来源（包根 package.json）
 web/                # React 单页应用（xyflow DAG 画布 + dagre 布局）
-tests/              # 20 个测试文件（parser/graph/infer/render/server/e2e/mcp/hub）
+tests/              # 21 个测试文件（parser/graph/infer/render/server/e2e/mcp/hub）
 ```
 
 ## 🛠️ 参与开发
