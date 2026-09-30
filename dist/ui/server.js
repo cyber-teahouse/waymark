@@ -59,6 +59,18 @@ export function startServer(root, port, bundle) {
         }
     }
     const server = http.createServer(async (req, res) => {
+        // Host 白名单：x-waymark 自定义头挡得住跨站表单，挡不住 DNS rebinding——
+        // 攻击者页面在自己域上发带自定义头的请求，rebind 到 127.0.0.1 后对浏览器是同源。
+        // 服务只绑回环，合法 Host 只可能是 localhost/127.0.0.1/::1。
+        const hostHeader = req.headers.host ?? "";
+        const hostname = hostHeader.startsWith("[")
+            ? hostHeader.slice(1, hostHeader.indexOf("]"))
+            : hostHeader.split(":")[0];
+        if (!["localhost", "127.0.0.1", "::1"].includes(hostname.toLowerCase())) {
+            res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+            res.end("Waymark UI 仅允许本机访问");
+            return;
+        }
         if (req.url === "/events") {
             res.writeHead(200, {
                 "content-type": "text/event-stream",

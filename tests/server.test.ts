@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -309,6 +310,36 @@ describe("mutation api：POST /api/acc（单项验收勾选）", () => {
     expect(missing.status).toBe(400);
     const badIdx = await post({ id: "M2-auth", indices: [99] });
     expect(badIdx.status).toBe(400);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+  });
+});
+
+describe("Host 白名单（防 DNS rebinding）", () => {
+  function getWithHost(port: number, host: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const req = http.request({ host: "127.0.0.1", port, path: "/", headers: { host } }, (res) => {
+        res.resume();
+        res.on("end", () => resolve(res.statusCode ?? 0));
+      });
+      req.on("error", reject);
+      req.end();
+    });
+  }
+
+  it("非本机 Host 403，本机别名放行", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-host-"));
+    await makeSampleProject(root);
+    const server = startServer(root, 0, '<html><body><div id="root"></div>stub</body></html>');
+    await new Promise<void>((resolve) => server.on("listening", resolve));
+    const addr = server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    expect(await getWithHost(port, "evil.example")).toBe(403);
+    expect(await getWithHost(port, "attacker.com:7300")).toBe(403);
+    expect(await getWithHost(port, `localhost:${port}`)).toBe(200);
+    expect(await getWithHost(port, `127.0.0.1:${port}`)).toBe(200);
 
     await new Promise<void>((resolve) => server.close(() => resolve()));
     (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
