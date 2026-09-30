@@ -33,8 +33,7 @@
 ## 🥾 快速起步
 
 ```bash
-npm link            # 在本包内：全局注册 waymark 命令
-npm run build && npm run build:web   # 构建 CLI 与页面产物
+npm i -g waymark-cli   # 需要 Node >= 20
 
 cd /path/to/your-project
 waymark init       # 生成 plan/ 骨架
@@ -162,6 +161,17 @@ src/
 └── version.ts      # 版本号唯一来源（包根 package.json）
 web/                # React 单页应用（xyflow DAG 画布 + dagre 布局）
 tests/              # 20 个测试文件（parser/graph/infer/render/server/e2e/mcp/hub）
+```
+
+## 🛠️ 参与开发
+
+```bash
+git clone https://github.com/cyber-teahouse/waymark.git
+cd waymark
+npm install
+npm run build && npm run build:web   # 构建 CLI 与页面产物
+npm link            # 全局注册 waymark 命令
+npm test            # biome + typecheck + vitest
 ```
 
 ## 🧭 已知事项
