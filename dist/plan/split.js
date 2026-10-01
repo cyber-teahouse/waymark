@@ -28,7 +28,8 @@ function rewriteDeps(fm, depsLine, id) {
 /** 把节点拆成任务链：t1 继承原依赖，其后链式；原节点 deps 改写为全部任务（汇总闸口——
  *  任务未完成时 done 原节点触发既有「依赖未完成」护栏）。验收/证据/描述留在原节点——
  *  它是成果规格；任务只带标题与依赖。任务文件不进 overview.md（总览表强校验仅覆盖 milestone）。
- *  原节点改写先算后写、目标文件先查冲突再落盘——任何校验失败都不留半成品。 */
+ *  原节点改写先算后写、目标文件先查冲突再落盘——任何校验失败都不留半成品；
+ *  写入失败亦回滚已创建任务文件（逆序 best-effort 删除后原样抛出），同样不留半成品。 */
 export function splitNode(root, id, titles) {
     if (titles.length === 0)
         throw new Error("未提供任务标题");
@@ -70,28 +71,44 @@ export function splitNode(root, id, titles) {
         if (fs.existsSync(path.join(root, rel)))
             throw new Error(`任务文件已存在: ${rel}`);
     }
-    const created = taskIds.map((tid, i) => {
-        const deps = i === 0 ? doc.fm.deps : [taskIds[i - 1]];
-        const iteration = doc.fm.iteration ? `iteration: ${doc.fm.iteration}\n` : "";
-        // 标题按 YAML 双引号标量落盘：裸写含「: 」的标题会产生非法 frontmatter
-        const yamlTitle = `"${titles[i].replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-        const rel = `${dir}/${tid}.md`;
-        const fileBody = [
-            "---",
-            `id: ${tid}`,
-            `title: ${yamlTitle}`,
-            "type: task",
-            "status: planned",
-            `deps: [${deps.join(", ")}]`,
-            `${iteration}---`,
-            "",
-            "## 需求描述",
-            "（拆分自动生成——补充这个任务要做什么）",
-            "",
-        ].join("\n");
-        fs.writeFileSync(path.join(root, rel), fileBody, "utf8");
-        return { id: tid, file: rel };
-    });
-    writePlanSource(abs, nextRaw, crlf);
+    const created = [];
+    try {
+        for (let i = 0; i < taskIds.length; i++) {
+            const tid = taskIds[i];
+            const deps = i === 0 ? doc.fm.deps : [taskIds[i - 1]];
+            const iteration = doc.fm.iteration ? `iteration: ${doc.fm.iteration}\n` : "";
+            // 标题按 YAML 双引号标量落盘：裸写含「: 」的标题会产生非法 frontmatter
+            const yamlTitle = `"${titles[i].replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+            const rel = `${dir}/${tid}.md`;
+            const fileBody = [
+                "---",
+                `id: ${tid}`,
+                `title: ${yamlTitle}`,
+                "type: task",
+                "status: planned",
+                `deps: [${deps.join(", ")}]`,
+                `${iteration}---`,
+                "",
+                "## 需求描述",
+                "（拆分自动生成——补充这个任务要做什么）",
+                "",
+            ].join("\n");
+            fs.writeFileSync(path.join(root, rel), fileBody, "utf8");
+            created.push({ id: tid, file: rel });
+        }
+        writePlanSource(abs, nextRaw, crlf);
+    }
+    catch (e) {
+        // 写入失败（含原节点改写失败）→ 逆序 best-effort 删除已创建任务文件，不留半成品；原错误原样抛出
+        for (let i = created.length - 1; i >= 0; i--) {
+            try {
+                fs.rmSync(path.join(root, created[i].file), { force: true });
+            }
+            catch {
+                // 删除失败不掩盖原始写入错误
+            }
+        }
+        throw e;
+    }
     return { created, warnings };
 }

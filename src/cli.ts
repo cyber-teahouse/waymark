@@ -198,7 +198,9 @@ export function createProgram(): Command {
     });
 
   withRoot(program.command("split"))
-    .description("把节点拆成任务链：一个标题一个 task 文件，原节点 deps 汇总全部任务（拆细后逐个认领）")
+    .description(
+      "把节点拆成任务链：一个标题一个 task 文件（生成 <id>-t1…-tN，链式依赖），原节点 deps 汇总全部任务（拆细后逐个认领）",
+    )
     .argument("<id>", "节点 id")
     .argument("<titles...>", "任务标题（一个标题一个任务文件）")
     .action((id: string, titles: string[], _opts: unknown, cmd: Command) => {
@@ -209,6 +211,7 @@ export function createProgram(): Command {
         for (const c of created) console.log(`  + ${c.id}  ${c.file}`);
         for (const w of warnings) console.warn(`⚠ ${w}`);
         console.log("提示：运行 waymark sync 更新工作流数据");
+        console.log("提示：waymark ready 确认可开工后，逐个 waymark start 认领任务");
       } catch (e) {
         console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
         process.exitCode = 1;

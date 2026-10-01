@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import fg from "fast-glob";
+import { statsProgress } from "../progress.js";
 /** 聚合页无意义的目录：隐藏目录与依赖目录直接跳过。 */
 const NOISE_DIRS = new Set(["node_modules"]);
 /** 项目目录候选：有 .waymark/，或 plan/ 呈现 waymark 结构（overview.md 或 milestones/、iterations/ 子目录）。
@@ -107,12 +108,8 @@ export function renderHubHtml(entries, generatedAt) {
       </div>`;
         }
         const s = e.stats;
-        // 手改数据可能出现越界 progress（如 500）——统一钳制一次，ring 文本与 bar 宽度共用（ring 内部另有钳制双保险）
-        const percent = Math.max(0, Math.min(100, typeof s.progress === "number"
-            ? s.progress
-            : s.total > 0
-                ? Math.round((s.done / s.total) * 100)
-                : 0));
+        // 越界 progress 已由 statsProgress 统一钳制（0–100），ring 文本与 bar 宽度共用（ring 内部另有钳制双保险）
+        const percent = statsProgress(s);
         const rel = relTime(e.generatedAt);
         const stale = e.generatedAt
             ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS

@@ -94,6 +94,39 @@ describe("renderStatus", () => {
     expect(out).toContain("生成于 2 小时前");
   });
 
+  it("progress 越界钳制到 0–100（与 hub 同口径，手改数据不再出现 500%）", () => {
+    const mkWf = (progress: number): WorkflowJson => ({
+      version: 1,
+      generatedAt: "2026-09-23T12:00:00Z",
+      project: "p",
+      nodes: [
+        {
+          id: "A",
+          title: "甲",
+          type: "task",
+          declaredStatus: "planned",
+          inferredStatus: null,
+          displayStatus: "planned",
+          warning: null,
+          confidence: 1,
+          evidenceReport: [],
+          acceptance: [],
+          completionLog: [],
+          commits: [],
+          deps: [],
+          file: "plan/a.md",
+          description: "",
+        },
+      ],
+      edges: [],
+      iterations: [],
+      issues: [],
+      stats: { total: 3, done: 1, inProgress: 0, planned: 2, blocked: 0, dropped: 0, warnings: 0, progress },
+    });
+    expect(renderStatus(mkWf(500), now)).toContain("100%（1/3）");
+    expect(renderStatus(mkWf(-5), now)).toContain("0%（1/3）");
+  });
+
   it("依赖未满足与旁路 dropped 的口径和 ready 一致", () => {
     const base = {
       version: 1 as const,

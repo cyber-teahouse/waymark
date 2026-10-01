@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { loadPlan } from "../src/parser/parsePlan.js";
 import { splitNode } from "../src/plan/split.js";
 import { makeSampleProject } from "./helpers.js";
@@ -221,5 +221,27 @@ deps:
     expect(text).not.toContain("- M1-core");
     expect(text).not.toMatch(/\n\n---/);
     expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
+  });
+
+  it("写入失败回滚：原节点改写抛错时 rethrow，已创建任务文件清理、原文件未动", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split17-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    const before = fs.readFileSync(file, "utf8");
+
+    const commands = await import("../src/plan/commands.js");
+    const spy = vi.spyOn(commands, "writePlanSource").mockImplementation(() => {
+      throw Object.assign(new Error("EACCES: permission denied, write"), { code: "EACCES" });
+    });
+    try {
+      expect(() => splitNode(root, "M2-auth", ["任务一", "任务二", "任务三"])).toThrow(/EACCES/);
+    } finally {
+      spy.mockRestore();
+    }
+    // 3 个任务文件全部被回滚清理，原里程碑文件内容一字未动
+    for (const t of ["M2-auth-t1", "M2-auth-t2", "M2-auth-t3"]) {
+      expect(fs.existsSync(path.join(root, "plan", "milestones", `${t}.md`))).toBe(false);
+    }
+    expect(fs.readFileSync(file, "utf8")).toBe(before);
   });
 });
