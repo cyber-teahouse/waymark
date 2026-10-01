@@ -123,5 +123,9 @@ describe("加权完成率圆环", () => {
     write(stats); // 旧数据无 progress → 回退 1/2 = 50
     const html2 = renderHubHtml(gatherHubData([proj.replace(/\\/g, "/")]), new Date().toISOString());
     expect(html2).toContain(">50<");
+
+    write({ ...stats, progress: "75" as unknown as number }); // 非数值 progress → typeof 守卫拒绝 → 回退 1/2 = 50
+    const html3 = renderHubHtml(gatherHubData([proj.replace(/\\/g, "/")]), new Date().toISOString());
+    expect(html3).toContain(">50<");
   });
 });
