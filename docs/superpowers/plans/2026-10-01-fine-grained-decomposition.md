@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Errata（2026-10-02）：** Task 1 实际实现与计划代码有三处差异——① deps 改写收窄到 frontmatter 块（导出 `splitFrontmatter` 复用；正文中的 `deps: [` 示例与多行 flow deps 不再损坏文档）；② 内联 deps 检测正则用 `[ \t]*` 且首字符排除 `[`，而非 `\s*`（避免跨行误配块式/flow 写法）；③ 计划内测试 1 的 warnings 断言改为「含 in-progress 警告」以与测试 4 自洽。见提交 75f1972 及其 fix 提交。
+
 **Goal:** 实现 `waymark split`（里程碑→任务链拆分，CLI + MCP）与验收项加权进度（stats.progress，三处展示），配套 init 模板示范与中英文档。
 
 **Architecture:** 拆分是纯约定——`deps` 表达层级（t1 继承原依赖、后续链式、原节点 deps 汇总全部任务），零 schema 变更；加权进度是 stats 的加性可选字段，所有展示位带回退。规格见 `docs/superpowers/specs/2026-10-01-fine-grained-decomposition-design.md`。

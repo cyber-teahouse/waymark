@@ -11,7 +11,7 @@ export interface MarkDoneOptions {
   date?: string;
 }
 
-function splitFrontmatter(raw: string): { fm: string; body: string } {
+export function splitFrontmatter(raw: string): { fm: string; body: string } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(raw);
   if (!m) throw new Error("文件缺少 frontmatter 块");
   return { fm: m[1], body: raw.slice(m.index + m[0].length) };

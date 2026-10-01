@@ -78,4 +78,88 @@ describe("splitNode（里程碑拆分为任务链）", () => {
     expect(text).toContain("deps: [M2-auth-t1]");
     expect(text).not.toContain("- M1-core");
   });
+
+  it("frontmatter 无 deps 行 → 插到 status 行后（zod 默认 [] 路径）", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split7-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("deps: [M1-core]\n", ""), "utf8");
+    splitNode(root, "M2-auth", ["任务一"]);
+    const text = fs.readFileSync(file, "utf8");
+    expect(text).toMatch(/^status: in-progress\ndeps: \[M2-auth-t1\]$/m);
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
+  });
+
+  it("原依赖为空（deps: []）→ t1 继承空依赖", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split8-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("deps: [M1-core]", "deps: []"), "utf8");
+    splitNode(root, "M2-auth", ["任务一"]);
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth-t1")!.fm.deps).toEqual([]);
+  });
+
+  it("多行 flow deps 整体替换为单行、无残留", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split9-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(
+      file,
+      fs.readFileSync(file, "utf8").replace("deps: [M1-core]", "deps: [\n  M1-core\n]"),
+      "utf8",
+    );
+    splitNode(root, "M2-auth", ["任务一", "任务二"]);
+    const text = fs.readFileSync(file, "utf8");
+    expect(text.match(/^deps:.*$/gm)).toEqual(["deps: [M2-auth-t1, M2-auth-t2]"]);
+    expect(text).not.toContain("M1-core");
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual([
+      "M2-auth-t1",
+      "M2-auth-t2",
+    ]);
+  });
+
+  it("CRLF 文件经 splitNode 后主流行尾保持 CRLF", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split10-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(/\n/g, "\r\n"), "utf8");
+    splitNode(root, "M2-auth", ["任务一"]);
+    const text = fs.readFileSync(file, "utf8");
+    expect(text).toContain("deps: [M2-auth-t1]");
+    expect(text).not.toMatch(/(?<!\r)\n/);
+  });
+
+  it("type: task 节点拆分 → 警告存在", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split11-"));
+    await makeSampleProject(root);
+    const { warnings } = splitNode(root, "M3-login", ["任务一"]);
+    expect(warnings).toContain("M3-login 本身是 task——通常只拆 milestone，请确认");
+  });
+
+  it("标题含换行 → 报错且不落盘", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split12-"));
+    await makeSampleProject(root);
+    expect(() => splitNode(root, "M2-auth", ["第一行\n第二行"])).toThrow(/任务标题不能包含换行/);
+    expect(fs.existsSync(path.join(root, "plan", "milestones", "M2-auth-t1.md"))).toBe(false);
+  });
+
+  it("正文含行首 deps: [ 示例 + 块式 frontmatter deps → 只改 frontmatter、正文原样", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split13-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(
+      file,
+      fs
+        .readFileSync(file, "utf8")
+        .replace("deps: [M1-core]", "deps:\n  - M1-core")
+        .replace("## 需求描述\n", "## 需求描述\n\n```yaml\ndeps: [示例, 示例2]\n```\n"),
+      "utf8",
+    );
+    splitNode(root, "M2-auth", ["任务一"]);
+    const after = fs.readFileSync(file, "utf8");
+    expect(after).toContain("deps: [M2-auth-t1]");
+    expect(after).toContain("```yaml\ndeps: [示例, 示例2]\n```");
+    expect(after).not.toContain("- M1-core");
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
+  });
 });
