@@ -114,7 +114,7 @@ plan/
 - **状态机**：`planned → in-progress → done`（旁路 `blocked` / `dropped`，由 `block` / `drop` 设置、`reopen` 恢复）
 - **证据四维**：`paths`（文件存在）/ `grep`（代码命中）/ `tests`（测试存在）/ `git`（提交匹配）；推断只提示不覆盖声明
 - **迭代演进**：新增 `plan/iterations/I2-xxx.md` + 节点标 `iteration: I2` → `ui` 模式数秒内自动出现在视图
-- **拆分约定**：milestone = 交付物（验收/证据挂这），task = 一个 PR / 一次 agent 会话；`waymark split M-xxx 任务一 任务二` 生成任务链（t1 继承依赖、后续链式、里程碑 deps 汇总），`ready` 一次只给一个可开工单元
+- **拆分约定**：milestone = 交付物（验收/证据挂这），task = 一个 PR / 一次 agent 会话；`waymark split M-xxx 任务一 任务二` 生成任务链（t1 继承依赖、后续链式、里程碑 deps 汇总），`ready` 一次只给一个可开工单元。里程碑在任务进行期间保持 `planned`，可手动 `waymark start` 标记「交付中」
 
 ### check 规则
 

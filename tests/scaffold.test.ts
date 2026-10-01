@@ -1,13 +1,17 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import matter from "gray-matter";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildGraph } from "../src/graph/buildGraph.js";
 import { validatePatterns, validatePlan } from "../src/graph/validate.js";
+import { TASK1_MD } from "../src/init/templates.js";
 import { loadPlan } from "../src/parser/parsePlan.js";
 import { collectPlanIssues } from "../src/plan/check.js";
 import { listReady } from "../src/plan/commands.js";
+import { splitNode } from "../src/plan/split.js";
 import { runInit } from "../src/scaffold.js";
+import { makeSampleProject } from "./helpers.js";
 
 let root: string;
 beforeAll(() => {
@@ -41,5 +45,16 @@ describe("骨架任务链示例", () => {
     expect(fs.existsSync(path.join(root, "plan", "milestones", "M1-example-t2.md"))).toBe(true);
     expect(collectPlanIssues(root).filter((i) => i.level === "error")).toEqual([]);
     expect(listReady(root).map((r) => r.id)).toEqual(["M1-example-t1"]);
+  });
+});
+
+describe("模板与 split 任务形状一致性", () => {
+  it("init 任务模板与 split 产物的 frontmatter 键序列一致", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-shape-"));
+    await makeSampleProject(root);
+    splitNode(root, "M3-login", ["x"]);
+    const splitRaw = fs.readFileSync(path.join(root, "plan", "milestones", "M3-login-t1.md"), "utf8");
+    const keysOf = (raw: string) => Object.keys(matter(raw).data);
+    expect(keysOf(TASK1_MD)).toEqual(keysOf(splitRaw));
   });
 });

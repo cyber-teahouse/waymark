@@ -60,9 +60,12 @@ describe("acc 命令（单项验收勾选）", () => {
   it("勾选指定验收项并输出更新后的清单", async () => {
     const root = await makeValidProject();
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    // 勾选后 M2-auth 验收全勾 → 「可用 waymark done 收尾」警告，别漏进测试输出
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await runCli(["--root", root, "acc", "M2-auth", "2"]);
     const out = spy.mock.calls.map((c) => c[0]).join("\n");
     spy.mockRestore();
+    warnSpy.mockRestore();
     expect(out).toContain("验收已更新");
     expect(out).toContain("[x] 2. 刷新令牌");
     expect(fs.readFileSync(path.join(root, "plan", "milestones", "M2-auth.md"), "utf8")).toContain(

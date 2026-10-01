@@ -170,4 +170,56 @@ describe("splitNode（里程碑拆分为任务链）", () => {
     expect(after).not.toContain("- M1-core");
     expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
   });
+
+  it("frontmatter 无尾行（status 是最后一个键、无末尾换行）→ deps 插到 status 后且文件仍可解析", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split15-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    // status 是 frontmatter 最后一个键，其后再无键行；EOF 也无换行
+    fs.writeFileSync(
+      file,
+      `---
+id: M2-auth
+title: 认证模块
+type: milestone
+status: in-progress
+---
+
+## 需求描述
+提供登录鉴权能力。`,
+      "utf8",
+    );
+    splitNode(root, "M2-auth", ["任务一"]);
+    const text = fs.readFileSync(file, "utf8");
+    // deps 紧跟 status、紧贴闭合 ---，无多余空行
+    expect(text).toMatch(/^status: in-progress\ndeps: \[M2-auth-t1\]\n---$/m);
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
+  });
+
+  it("块式 deps 是 frontmatter 最后一个键、无尾换行 → 改写后无多余空行且可解析", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split16-"));
+    await makeSampleProject(root);
+    const file = path.join(root, "plan", "milestones", "M2-auth.md");
+    fs.writeFileSync(
+      file,
+      `---
+id: M2-auth
+title: 认证模块
+type: milestone
+status: in-progress
+deps:
+  - M1-core
+---
+
+## 需求描述
+提供登录鉴权能力。`,
+      "utf8",
+    );
+    splitNode(root, "M2-auth", ["任务一"]);
+    const text = fs.readFileSync(file, "utf8");
+    expect(text).toMatch(/^deps: \[M2-auth-t1\]\n---$/m);
+    expect(text).not.toContain("- M1-core");
+    expect(text).not.toMatch(/\n\n---/);
+    expect(loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!.fm.deps).toEqual(["M2-auth-t1"]);
+  });
 });

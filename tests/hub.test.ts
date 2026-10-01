@@ -129,3 +129,50 @@ describe("加权完成率圆环", () => {
     expect(html3).toContain(">50<");
   });
 });
+
+describe("hub 健壮性（stats 形状守卫与钳制）", () => {
+  it("workflow.json 可 parse 但 stats 形状不符 → found:false，渲染不崩且显示修复提示", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-hubbad-"));
+    const proj = path.join(root, "broken").replace(/\\/g, "/");
+    fs.mkdirSync(path.join(proj, ".waymark"), { recursive: true });
+    fs.writeFileSync(
+      path.join(proj, ".waymark", "workflow.json"),
+      JSON.stringify({ version: 1, project: "broken", generatedAt: new Date().toISOString(), stats: 5 }),
+      "utf8",
+    );
+    const entries = gatherHubData([proj]);
+    expect(entries[0].found).toBe(false);
+    expect(entries[0].error).toContain("缺少 stats");
+    expect(entries[0].error).toContain("waymark sync");
+    const html = renderHubHtml(entries, new Date().toISOString());
+    expect(html).toContain("缺少 stats 或格式不符");
+  });
+
+  it("progress 越界（手改 500）→ percent 统一钳制，圆环文本与 bar 宽度均为 100", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-hubclamp-"));
+    const proj = path.join(root, "alpha").replace(/\\/g, "/");
+    fs.mkdirSync(path.join(proj, ".waymark"), { recursive: true });
+    fs.writeFileSync(
+      path.join(proj, ".waymark", "workflow.json"),
+      JSON.stringify({
+        version: 1,
+        generatedAt: new Date().toISOString(),
+        project: "alpha",
+        stats: {
+          total: 2,
+          done: 1,
+          inProgress: 1,
+          planned: 0,
+          blocked: 0,
+          dropped: 0,
+          warnings: 0,
+          progress: 500,
+        },
+      }),
+      "utf8",
+    );
+    const html = renderHubHtml(gatherHubData([proj]), new Date().toISOString());
+    expect(html).toContain(">100<");
+    expect(html).toContain('style="width:100%"');
+  });
+});

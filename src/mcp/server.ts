@@ -90,7 +90,8 @@ export function createMcpServer(root: string): McpServer {
   server.registerTool(
     "waymark_start_node",
     {
-      description: "认领开工：把 planned 节点标记为 in-progress（开工前先调用 waymark_list_ready）",
+      description:
+        "认领开工：把 planned 节点标记为 in-progress（开工前先调用 waymark_list_ready）；大节点先用 waymark_split_node 拆细再认领",
       inputSchema: { id: z.string().min(1) },
     },
     async ({ id }) => {

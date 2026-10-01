@@ -31,13 +31,25 @@ export function gatherHubData(patterns) {
         const page = path.join(dir, ".waymark", "index.html");
         const hasPage = fs.existsSync(page);
         try {
-            const wf = JSON.parse(fs.readFileSync(wfFile, "utf8"));
+            const raw = JSON.parse(fs.readFileSync(wfFile, "utf8"));
+            const s = raw.stats;
+            const statsOk = !!s && typeof s.total === "number" && typeof s.done === "number";
+            // workflow.json 能 parse 但缺 stats / 形状不符（如 stats: 5）→ 按「未同步」同构呈现，避免渲染崩
+            if (!statsOk) {
+                return {
+                    dir,
+                    name: path.basename(dir),
+                    found: false,
+                    error: "workflow.json 缺少 stats 或格式不符（重新 waymark sync）",
+                    pagePath: hasPage ? page : undefined,
+                };
+            }
             return {
                 dir,
-                name: typeof wf.project === "string" && wf.project ? wf.project : path.basename(dir),
+                name: typeof raw.project === "string" && raw.project ? raw.project : path.basename(dir),
                 found: true,
-                stats: wf.stats,
-                generatedAt: typeof wf.generatedAt === "string" ? wf.generatedAt : undefined,
+                stats: s,
+                generatedAt: typeof raw.generatedAt === "string" ? raw.generatedAt : undefined,
                 pagePath: hasPage ? page : undefined,
             };
         }
@@ -95,7 +107,12 @@ export function renderHubHtml(entries, generatedAt) {
       </div>`;
         }
         const s = e.stats;
-        const percent = typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+        // 手改数据可能出现越界 progress（如 500）——统一钳制一次，ring 文本与 bar 宽度共用（ring 内部另有钳制双保险）
+        const percent = Math.max(0, Math.min(100, typeof s.progress === "number"
+            ? s.progress
+            : s.total > 0
+                ? Math.round((s.done / s.total) * 100)
+                : 0));
         const rel = relTime(e.generatedAt);
         const stale = e.generatedAt
             ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS
@@ -108,7 +125,7 @@ export function renderHubHtml(entries, generatedAt) {
         <div class="hub-sub">${s.done} / ${s.total} 完成${rel ? ` · ${rel}` : ""}${stale ? ` · <b class="hub-stale">数据已过期</b>` : ""}</div></div>
       </div>
       <div class="hub-bars">
-        <div class="hub-bar"><i style="width:${s.total ? (s.done / s.total) * 100 : 0}%"></i></div>
+        <div class="hub-bar"><i style="width:${percent}%"></i></div>
         <div class="hub-meta">
           <span>${s.total} 节点</span><span class="c-done">完成 ${s.done}</span>
           <span class="c-wip">进行中 ${s.inProgress}</span><span>未开始 ${s.planned}</span>

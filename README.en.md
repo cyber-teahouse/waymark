@@ -112,7 +112,7 @@ plan/
 - **State machine**: `planned → in-progress → done` (side-tracks `blocked` / `dropped`, set by `block` / `drop`, restored by `reopen`)
 - **Four evidence dimensions**: `paths` (files exist) / `grep` (code hits) / `tests` (tests exist) / `git` (commit matches); inference only warns, never overwrites declarations
 - **Iterations evolve**: add `plan/iterations/I2-xxx.md` + tag nodes with `iteration: I2` → appears in `ui` within seconds
-- **Decomposition convention**: milestone = the outcome (acceptance/evidence live here), task = one PR / one agent session; `waymark split M-xxx task-one task-two` generates a task chain (t1 inherits deps, the rest chain, the milestone's deps roll up) so `ready` yields one claimable unit at a time
+- **Decomposition convention**: milestone = the outcome (acceptance/evidence live here), task = one PR / one agent session; `waymark split M-xxx task-one task-two` generates a task chain (t1 inherits deps, the rest chain, the milestone's deps roll up) so `ready` yields one claimable unit at a time. Milestones stay `planned` while their tasks run; `waymark start` manually marks one as "in delivery"
 
 ### check rules
 

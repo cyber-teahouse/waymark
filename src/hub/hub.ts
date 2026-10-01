@@ -52,13 +52,29 @@ export function gatherHubData(patterns: string[]): HubEntry[] {
     const page = path.join(dir, ".waymark", "index.html");
     const hasPage = fs.existsSync(page);
     try {
-      const wf = JSON.parse(fs.readFileSync(wfFile, "utf8"));
+      const raw = JSON.parse(fs.readFileSync(wfFile, "utf8")) as {
+        project?: unknown;
+        stats?: unknown;
+        generatedAt?: unknown;
+      };
+      const s = raw.stats as HubEntry["stats"] | undefined;
+      const statsOk = !!s && typeof s.total === "number" && typeof s.done === "number";
+      // workflow.json 能 parse 但缺 stats / 形状不符（如 stats: 5）→ 按「未同步」同构呈现，避免渲染崩
+      if (!statsOk) {
+        return {
+          dir,
+          name: path.basename(dir),
+          found: false,
+          error: "workflow.json 缺少 stats 或格式不符（重新 waymark sync）",
+          pagePath: hasPage ? page : undefined,
+        } satisfies HubEntry;
+      }
       return {
         dir,
-        name: typeof wf.project === "string" && wf.project ? wf.project : path.basename(dir),
+        name: typeof raw.project === "string" && raw.project ? raw.project : path.basename(dir),
         found: true,
-        stats: wf.stats,
-        generatedAt: typeof wf.generatedAt === "string" ? wf.generatedAt : undefined,
+        stats: s,
+        generatedAt: typeof raw.generatedAt === "string" ? raw.generatedAt : undefined,
         pagePath: hasPage ? page : undefined,
       } satisfies HubEntry;
     } catch (e) {
@@ -115,8 +131,18 @@ export function renderHubHtml(entries: HubEntry[], generatedAt: string): string 
       </div>`;
       }
       const s = e.stats!;
-      const percent =
-        typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+      // 手改数据可能出现越界 progress（如 500）——统一钳制一次，ring 文本与 bar 宽度共用（ring 内部另有钳制双保险）
+      const percent = Math.max(
+        0,
+        Math.min(
+          100,
+          typeof s.progress === "number"
+            ? s.progress
+            : s.total > 0
+              ? Math.round((s.done / s.total) * 100)
+              : 0,
+        ),
+      );
       const rel = relTime(e.generatedAt);
       const stale = e.generatedAt
         ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS
