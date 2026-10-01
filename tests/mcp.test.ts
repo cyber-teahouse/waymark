@@ -14,6 +14,7 @@ const TOOL_NAMES = [
   "waymark_get_node",
   "waymark_list_ready",
   "waymark_start_node",
+  "waymark_split_node",
   "waymark_mark_done",
   "waymark_block_node",
   "waymark_drop_node",
@@ -49,7 +50,7 @@ async function makeTempSample(): Promise<string> {
 }
 
 describe("waymark mcp server", () => {
-  it("listTools exposes the 10 tools with non-empty descriptions", async () => {
+  it("listTools exposes the 11 tools with non-empty descriptions", async () => {
     const root = await makeTempSample();
     const { server, client } = await setup(root);
     const { tools } = await client.listTools();
@@ -294,6 +295,23 @@ describe("waymark_toggle_acceptance", () => {
       arguments: { id: "M2-auth", indices: [9] },
     });
     expect(bad.isError).toBe(true);
+    await client.close();
+    await server.close();
+  });
+});
+
+describe("waymark_split_node", () => {
+  it("拆分返回创建清单与 readyNext，首个任务可被 ready 列出", async () => {
+    resetWorkflowCache();
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+    const result = await client.callTool({
+      name: "waymark_split_node",
+      arguments: { id: "M2-auth", titles: ["密码表单", "令牌刷新"] },
+    });
+    const json = jsonOf(result as ToolResult);
+    expect(json.created.map((c: { id: string }) => c.id)).toEqual(["M2-auth-t1", "M2-auth-t2"]);
+    expect(json.readyNext.some((r: { id: string }) => r.id === "M2-auth-t1")).toBe(true);
     await client.close();
     await server.close();
   });
