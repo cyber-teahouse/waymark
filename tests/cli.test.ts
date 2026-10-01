@@ -97,11 +97,15 @@ describe("split 命令接线", () => {
   it("拆分输出清单且任务文件落库、deps 汇总", async () => {
     const root = await makeValidProject();
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await runCli(["split", "M2-auth", "密码表单", "令牌刷新", "--root", root]);
     expect(spy).toHaveBeenCalledWith(expect.stringContaining("已拆出 2 个任务"));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("进行中"));
     spy.mockRestore();
+    warnSpy.mockRestore();
     const m2 = loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!;
     expect(m2.fm.deps).toEqual(["M2-auth-t1", "M2-auth-t2"]);
+    expect(loadPlan(root).nodes.some((n) => n.fm.id === "M2-auth-t1")).toBe(true);
   });
 
   it("done 节点拒绝拆分且退出码 1", async () => {
@@ -111,7 +115,7 @@ describe("split 命令接线", () => {
     await runCli(["split", "M1-core", "x", "--root", root]);
     expect(process.exitCode).toBe(1);
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("已是 done"));
-    process.exitCode = 0;
+    process.exitCode = undefined;
     logSpy.mockRestore();
     errSpy.mockRestore();
   });
