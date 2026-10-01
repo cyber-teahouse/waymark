@@ -18,7 +18,8 @@ describe("runInit", () => {
   it("creates a plan/ skeleton that passes check", () => {
     runInit(root);
     const plan = loadPlan(root);
-    expect(plan.nodes).toHaveLength(3);
+    expect(plan.nodes.filter((n) => n.fm.type === "milestone")).toHaveLength(1);
+    expect(plan.nodes.filter((n) => n.fm.type === "task")).toHaveLength(2);
     expect(plan.iterations).toHaveLength(1);
     const issues = [
       ...plan.issues,
