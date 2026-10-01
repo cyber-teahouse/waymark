@@ -82,6 +82,7 @@ describe("renderStatus", () => {
       edges: [{ from: "A", to: "B" }],
       iterations: [{ id: "I1", title: "MVP", nodeIds: ["A", "B"] }],
       issues: [],
+      // 无 progress 字段 → 走回退节点比口径
       stats: { total: 3, done: 1, inProgress: 0, planned: 1, blocked: 1, dropped: 0, warnings: 0 },
     };
     const out = renderStatus(wf, now);

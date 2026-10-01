@@ -30,7 +30,7 @@ export function renderStatus(wf: WorkflowJson, now: Date = new Date()): string {
   const s = wf.stats;
   const pct =
     typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
-  const filled = Math.round((pct / 100) * BAR_W);
+  const filled = Math.max(0, Math.min(BAR_W, Math.round((pct / 100) * BAR_W)));
   const bar = "█".repeat(filled) + "░".repeat(BAR_W - filled);
 
   const lines: string[] = [];
