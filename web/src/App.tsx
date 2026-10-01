@@ -205,7 +205,25 @@ function Main({ wf }: { wf: WorkflowJson }) {
     blocked: scopeNodes.filter((n) => n.displayStatus === "blocked").length,
     warnings: scopeNodes.filter((n) => n.warning !== null).length,
   };
-  const percent = scopeStats.total > 0 ? Math.round((scopeStats.done / scopeStats.total) * 100) : 0;
+  // 验收项加权：done 记满、未 done 记勾选占比，dropped 不计——与 stats.progress 同口径
+  const activeNodes = scopeNodes.filter((n) => n.displayStatus !== "dropped");
+  const percent =
+    activeNodes.length > 0
+      ? Math.round(
+          (activeNodes.reduce(
+            (sum, n) =>
+              sum +
+              (n.displayStatus === "done"
+                ? 1
+                : n.acceptance.length > 0
+                  ? n.acceptance.filter((a) => a.done).length / n.acceptance.length
+                  : 0),
+            0,
+          ) /
+            activeNodes.length) *
+            100,
+        )
+      : 0;
 
   const q = query.trim().toLowerCase();
   const visible: WorkflowNode[] = scopeNodes.filter(
