@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { runCli } from "../src/cli.js";
+import { loadPlan } from "../src/parser/parsePlan.js";
 import { makeSampleProject } from "./helpers.js";
 
 async function makeValidProject(): Promise<string> {
@@ -89,5 +90,29 @@ describe("sync 守卫", () => {
     expect(fs.existsSync(path.join(root, ".waymark"))).toBe(false);
     err.mockRestore();
     process.exitCode = undefined;
+  });
+});
+
+describe("split 命令接线", () => {
+  it("拆分输出清单且任务文件落库、deps 汇总", async () => {
+    const root = await makeValidProject();
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await runCli(["split", "M2-auth", "密码表单", "令牌刷新", "--root", root]);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("已拆出 2 个任务"));
+    spy.mockRestore();
+    const m2 = loadPlan(root).nodes.find((n) => n.fm.id === "M2-auth")!;
+    expect(m2.fm.deps).toEqual(["M2-auth-t1", "M2-auth-t2"]);
+  });
+
+  it("done 节点拒绝拆分且退出码 1", async () => {
+    const root = await makeValidProject();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await runCli(["split", "M1-core", "x", "--root", root]);
+    expect(process.exitCode).toBe(1);
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("已是 done"));
+    process.exitCode = 0;
+    logSpy.mockRestore();
+    errSpy.mockRestore();
   });
 });
