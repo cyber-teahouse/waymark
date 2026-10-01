@@ -83,6 +83,7 @@ waymark reopen M-xxx                        # 撤销误操作：done/blocked/dro
 | `waymark drop <id> -m <原因>` | 放弃节点（dropped 旁路），说明带 `[dropped]` 前缀入完成记录 |
 | `waymark reopen <id> [--planned]` | 重新打开 done/blocked/dropped 节点：默认恢复 in-progress，`--planned` 退回未开始；说明带 `[reopened]` 前缀 |
 | `waymark ready` | 列出 planned 且依赖已满足的节点，页面侧带「可开工」紫色标识 |
+| `waymark split <id> <标题…>` | 把节点拆成任务链：一个标题一个 task 文件（链式依赖），原节点 deps 汇总全部任务；验收/证据留在原节点 |
 | `waymark hub [patterns…] [-o file]` | 多项目总览：聚合各项目 workflow.json 为一张静态总览页（默认 `.waymark/hub.html`），未同步项目给出提示 |
 | `waymark mcp` | 以 MCP stdio 服务启动，把上述能力暴露给 AI agent |
 
@@ -113,6 +114,7 @@ plan/
 - **状态机**：`planned → in-progress → done`（旁路 `blocked` / `dropped`，由 `block` / `drop` 设置、`reopen` 恢复）
 - **证据四维**：`paths`（文件存在）/ `grep`（代码命中）/ `tests`（测试存在）/ `git`（提交匹配）；推断只提示不覆盖声明
 - **迭代演进**：新增 `plan/iterations/I2-xxx.md` + 节点标 `iteration: I2` → `ui` 模式数秒内自动出现在视图
+- **拆分约定**：milestone = 交付物（验收/证据挂这），task = 一个 PR / 一次 agent 会话；`waymark split M-xxx 任务一 任务二` 生成任务链（t1 继承依赖、后续链式、里程碑 deps 汇总），`ready` 一次只给一个可开工单元
 
 ### check 规则
 
@@ -135,6 +137,7 @@ plan/
 | `waymark_get_node` | 按 id 获取节点详情（验收/证据/提交/完成记录） |
 | `waymark_list_ready` | 列出可开工节点 |
 | `waymark_start_node` | 认领节点开工（planned → in-progress，返回护栏警告与下一步可开工节点） |
+| `waymark_split_node` | 把节点拆成任务链（titles 数组，链式依赖），返回创建清单与下一步可开工节点——大里程碑先拆细再认领 |
 | `waymark_mark_done` | 标记节点完成并追加完成记录（返回护栏警告与下一步可开工节点） |
 | `waymark_toggle_acceptance` | 勾选/取消单项验收标准（indices 1 起编号，可多个，返回更新后的验收列表） |
 | `waymark_block_node` | 标记节点受阻（blocked 旁路，可带说明） |

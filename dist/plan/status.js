@@ -23,8 +23,8 @@ function relTime(iso, now) {
 /** 渲染终端进度一览（纯函数：workflow 进、文本出，便于测试）。 */
 export function renderStatus(wf, now = new Date()) {
     const s = wf.stats;
-    const pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
-    const filled = Math.round((pct / 100) * BAR_W);
+    const pct = typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+    const filled = Math.max(0, Math.min(BAR_W, Math.round((pct / 100) * BAR_W)));
     const bar = "█".repeat(filled) + "░".repeat(BAR_W - filled);
     const lines = [];
     lines.push(`${wf.project} · 进度工作流`);

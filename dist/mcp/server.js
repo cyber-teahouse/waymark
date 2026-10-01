@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { collectPlanIssues } from "../plan/check.js";
 import { blockNode, dropNode, listReady, markDone, reopenNode, startNode, toggleAcceptance, } from "../plan/commands.js";
+import { splitNode } from "../plan/split.js";
 import { getWorkflowCached } from "../sync/workflowCache.js";
 import { getVersion } from "../version.js";
 const SERVER_NAME = "waymark";
@@ -67,6 +68,18 @@ export function createMcpServer(root) {
         return jsonText({
             message: "已标记为 in-progress，完成后调用 waymark_mark_done 收尾",
             file,
+            warnings,
+            readyNext: listReady(root),
+        });
+    });
+    server.registerTool("waymark_split_node", {
+        description: "把节点拆成任务链：titles 每项生成一个 task 文件（type: task，链式依赖），原节点 deps 改为指向全部任务；生成任务 id 为 {id}-t1…-tN；验收/证据留在原节点——大里程碑先拆细再逐个 waymark_start_node 认领",
+        inputSchema: { id: z.string().min(1), titles: z.array(z.string().min(1)).min(1) },
+    }, async ({ id, titles }) => {
+        const { created, warnings } = splitNode(root, id, titles);
+        return jsonText({
+            message: `已拆出 ${created.length} 个任务，原节点 deps 已汇总任务链`,
+            created,
             warnings,
             readyNext: listReady(root),
         });

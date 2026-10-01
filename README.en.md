@@ -81,6 +81,7 @@ Keyboard support: `j`/`k` (or `↑`/`↓`) to move along the trail, `Enter` to j
 | `waymark drop <id> -m <reason>` | Drop a node (side-track); `[dropped]` prefix |
 | `waymark reopen <id> [--planned]` | Reopen done/blocked/dropped nodes: in-progress by default, `--planned` back to planned; `[reopened]` prefix |
 | `waymark ready` | List planned nodes whose deps are satisfied (marked purple as "ready" on the page) |
+| `waymark split <id> <title…>` | Split a node into a task chain: one title per task file (chained deps), the node's deps roll up to all tasks; acceptance/evidence stay on the original node |
 | `waymark hub [patterns…] [-o file]` | Multi-project overview: aggregate each project's workflow.json into one static page (default `.waymark/hub.html`), with hints for unsynced projects |
 | `waymark mcp` | Start as an MCP stdio server exposing the above to AI agents |
 
@@ -111,6 +112,7 @@ plan/
 - **State machine**: `planned → in-progress → done` (side-tracks `blocked` / `dropped`, set by `block` / `drop`, restored by `reopen`)
 - **Four evidence dimensions**: `paths` (files exist) / `grep` (code hits) / `tests` (tests exist) / `git` (commit matches); inference only warns, never overwrites declarations
 - **Iterations evolve**: add `plan/iterations/I2-xxx.md` + tag nodes with `iteration: I2` → appears in `ui` within seconds
+- **Decomposition convention**: milestone = the outcome (acceptance/evidence live here), task = one PR / one agent session; `waymark split M-xxx task-one task-two` generates a task chain (t1 inherits deps, the rest chain, the milestone's deps roll up) so `ready` yields one claimable unit at a time
 
 ### check rules
 
@@ -133,6 +135,7 @@ plan/
 | `waymark_get_node` | Node details by id (acceptance/evidence/commits/completion log) |
 | `waymark_list_ready` | List nodes ready to start |
 | `waymark_start_node` | Claim a node (planned → in-progress; returns guardrail warnings and the next ready nodes) |
+| `waymark_split_node` | Split a node into a task chain (array of titles, chained deps); returns created tasks and the next ready nodes — decompose big milestones before claiming |
 | `waymark_mark_done` | Mark done and append a completion record (returns guardrail warnings and the next ready nodes) |
 | `waymark_toggle_acceptance` | Toggle acceptance items (indices are 1-based, multiple allowed; returns the updated list) |
 | `waymark_block_node` | Mark blocked (side-track, optional note) |

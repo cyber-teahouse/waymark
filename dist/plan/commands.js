@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseAcceptance } from "../infer/inferStatus.js";
 import { loadPlan } from "../parser/parsePlan.js";
-function splitFrontmatter(raw) {
+export function splitFrontmatter(raw) {
     const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(raw);
     if (!m)
         throw new Error("文件缺少 frontmatter 块");
@@ -10,14 +10,14 @@ function splitFrontmatter(raw) {
 }
 /** 读计划文档源码：剥 UTF-8 BOM（Windows 编辑器另存常见，留着会让 frontmatter 定位失败），
  *  CRLF 归一为 LF 供行级处理；crlf 标记原文件主流行尾，写回时经 writePlanSource 还原。 */
-function loadPlanSource(abs) {
+export function loadPlanSource(abs) {
     const raw = fs.readFileSync(abs, "utf8").replace(/^\uFEFF/, "");
     const crlfCount = (raw.match(/\r\n/g) ?? []).length;
     const lfCount = (raw.match(/\n/g) ?? []).length - crlfCount;
     return { text: raw.replace(/\r\n/g, "\n"), crlf: crlfCount > lfCount };
 }
 /** 行尾保真写回：原文件以 CRLF 为主则整体按 CRLF 写出，状态变更不会把 Windows 文件改成混合行尾。 */
-function writePlanSource(abs, text, crlf) {
+export function writePlanSource(abs, text, crlf) {
     fs.writeFileSync(abs, crlf ? text.replace(/\n/g, "\r\n") : text, "utf8");
 }
 function today() {

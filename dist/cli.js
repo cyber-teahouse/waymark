@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { gatherHubData, renderHubHtml } from "./hub/hub.js";
 import { collectPlanIssues } from "./plan/check.js";
 import { blockNode, dropNode, listReady, markDone, reopenNode, startNode, toggleAcceptance, } from "./plan/commands.js";
+import { splitNode } from "./plan/split.js";
 import { statusReport } from "./plan/status.js";
 import { loadBundle, planNewerThan, renderWorkflowHtml, writeIndexHtml, writeWorkflow, } from "./render/render.js";
 import { runInit } from "./scaffold.js";
@@ -176,6 +177,26 @@ export function createProgram() {
             });
             for (const w of warnings)
                 console.warn(`⚠ ${w}`);
+        }
+        catch (e) {
+            console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);
+            process.exitCode = 1;
+        }
+    });
+    withRoot(program.command("split"))
+        .description("把节点拆成任务链：一个标题一个 task 文件，原节点 deps 汇总全部任务（拆细后逐个认领）")
+        .argument("<id>", "节点 id")
+        .argument("<titles...>", "任务标题（一个标题一个任务文件）")
+        .action((id, titles, _opts, cmd) => {
+        try {
+            const root = rootOf(cmd);
+            const { created, warnings } = splitNode(root, id, titles);
+            console.log(`✔ 已拆出 ${created.length} 个任务（${id} 的 deps 已指向任务链）`);
+            for (const c of created)
+                console.log(`  + ${c.id}  ${c.file}`);
+            for (const w of warnings)
+                console.warn(`⚠ ${w}`);
+            console.log("提示：运行 waymark sync 更新工作流数据");
         }
         catch (e) {
             console.error(`✖ ${e instanceof Error ? e.message : String(e)}`);

@@ -95,7 +95,7 @@ export function renderHubHtml(entries, generatedAt) {
       </div>`;
         }
         const s = e.stats;
-        const percent = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+        const percent = typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
         const rel = relTime(e.generatedAt);
         const stale = e.generatedAt
             ? (Date.now() - new Date(e.generatedAt).getTime()) / 86400000 >= STALE_DAYS

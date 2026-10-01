@@ -20,7 +20,7 @@ id: M1-example
 title: 示例里程碑
 type: milestone
 status: planned
-deps: []
+deps: [M1-example-t1, M1-example-t2]
 iteration: I1
 evidence:
   paths: [src/example/**]
@@ -31,8 +31,32 @@ acceptance:
 ---
 
 ## 需求描述
-（描述这个节点要做什么）
+（描述这个节点要做什么。deps 汇总拆出的任务链——任务全部完成后里程碑才可 done）
 
 ## 完成记录
 （完成后由开发者或 AI agent 追加，格式：- 2026-09-20 完成了什么）
+`;
+export const TASK1_MD = `---
+id: M1-example-t1
+title: 示例任务一（先做）
+type: task
+status: planned
+deps: []
+iteration: I1
+---
+
+## 需求描述
+（一个 task = 一个 PR / 一次 agent 会话能完成的量）
+`;
+export const TASK2_MD = `---
+id: M1-example-t2
+title: 示例任务二（依赖任务一）
+type: task
+status: planned
+deps: [M1-example-t1]
+iteration: I1
+---
+
+## 需求描述
+（任务链让 waymark ready 一次只给出一个可开工单元）
 `;
