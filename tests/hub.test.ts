@@ -90,3 +90,38 @@ describe("hub CLI command", () => {
     expect(fs.existsSync(out)).toBe(true);
   });
 });
+
+describe("加权完成率圆环", () => {
+  it("优先 stats.progress，缺失回退 done/total", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-hubp-"));
+    const proj = path.join(root, "alpha");
+    fs.mkdirSync(path.join(proj, ".waymark"), { recursive: true });
+    const stats = { total: 2, done: 1, inProgress: 1, planned: 0, blocked: 0, dropped: 0, warnings: 0 };
+    const write = (s: object) =>
+      fs.writeFileSync(
+        path.join(proj, ".waymark", "workflow.json"),
+        JSON.stringify({
+          version: 1,
+          generatedAt: new Date().toISOString(),
+          project: "alpha",
+          nodes: [],
+          edges: [],
+          iterations: [],
+          stats: s,
+        }),
+        "utf8",
+      );
+    const page = (p: string) => {
+      fs.mkdirSync(path.join(p, ".waymark"), { recursive: true });
+      fs.writeFileSync(path.join(p, ".waymark", "index.html"), "<html></html>", "utf8");
+    };
+    write({ ...stats, progress: 75 });
+    page(proj);
+    const html = renderHubHtml(gatherHubData([proj.replace(/\\/g, "/")]), new Date().toISOString());
+    expect(html).toContain(">75<");
+
+    write(stats); // 旧数据无 progress → 回退 1/2 = 50
+    const html2 = renderHubHtml(gatherHubData([proj.replace(/\\/g, "/")]), new Date().toISOString());
+    expect(html2).toContain(">50<");
+  });
+});
