@@ -14,7 +14,7 @@ describe("e2e: init → sync → render", () => {
     runInit(root);
     const { workflow, issues } = await buildWorkflow(root);
     expect(issues).toEqual([]);
-    expect(workflow.stats.total).toBe(1);
+    expect(workflow.stats.total).toBe(3);
 
     // 2) 覆盖为完整样例项目，sync + render
     fs.rmSync(path.join(root, "plan"), { recursive: true, force: true });
