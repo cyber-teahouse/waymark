@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { dropNode } from "../src/plan/commands.js";
+import { blockNode, dropNode, markDone } from "../src/plan/commands.js";
 import { buildWorkflow } from "../src/sync/build.js";
 import { computeDisplay } from "../src/sync/synthesize.js";
 import { makeSampleProject } from "./helpers.js";
@@ -94,5 +94,28 @@ describe("验收项加权进度（stats.progress）", () => {
     await dropNode(root, "M1-core", { note: "全部放弃" });
     ({ workflow } = await buildWorkflow(root));
     expect(workflow.stats.progress).toBe(0);
+  });
+
+  it("done 强制记满权重（验收未勾完也记 1），acceptanceDone 仍按真实勾选统计", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-wprogress3-"));
+    await makeSampleProject(root);
+    await markDone(root, "M2-auth", {}); // 1/2 验收勾选，不用 --acc 全勾
+    const { workflow } = await buildWorkflow(root);
+    // M1 done(1) + M2 done 强制 1（尽管只有 1/2 勾选）+ M3 0 → (1+1+0)/3 = 67%
+    expect(workflow.stats.progress).toBe(67);
+    // acceptanceDone 不受 done 状态影响：仍是真实勾选数 2+1=3（与 progress 有意分歧）
+    expect(workflow.stats.acceptanceDone).toBe(3);
+    expect(workflow.stats.acceptanceTotal).toBe(4);
+  });
+
+  it("blocked 节点占分母且按验收勾选占比计权", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-wprogress4-"));
+    await makeSampleProject(root);
+    await blockNode(root, "M2-auth", { note: "x" });
+    const { workflow } = await buildWorkflow(root);
+    // blocked ≠ dropped：M1 done(1) + M2 blocked 占 1 权重按 1/2 计 + M3 0 → (1.5)/3 = 50%
+    expect(workflow.stats.progress).toBe(50);
+    expect(workflow.stats.acceptanceTotal).toBe(4);
+    expect(workflow.stats.acceptanceDone).toBe(3);
   });
 });

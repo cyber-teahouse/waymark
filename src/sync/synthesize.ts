@@ -85,11 +85,10 @@ export async function synthesize(input: SynthesizeInput): Promise<WorkflowJson> 
   // 验收项加权进度：非 dropped 节点各占 1 权重，done 记 1，否则记已勾验收占比（无验收记 0）
   const active = wfNodes.filter((n) => n.displayStatus !== "dropped");
   const accDone = (n: WorkflowNode): number => n.acceptance.filter((a) => a.done).length;
-  const weight = active.reduce(
-    (sum, n) =>
-      sum + (n.displayStatus === "done" ? 1 : n.acceptance.length > 0 ? accDone(n) / n.acceptance.length : 0),
-    0,
-  );
+  // done 强制记满权重（即使验收未勾完）；blocked/planned 等其余状态按验收勾选占比计
+  const nodeWeight = (n: WorkflowNode): number =>
+    n.displayStatus === "done" ? 1 : n.acceptance.length > 0 ? accDone(n) / n.acceptance.length : 0;
+  const weight = active.reduce((sum, n) => sum + nodeWeight(n), 0);
   const stats = {
     total: wfNodes.length,
     done: wfNodes.filter((n) => n.displayStatus === "done").length,
