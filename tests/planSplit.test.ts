@@ -143,6 +143,14 @@ describe("splitNode（里程碑拆分为任务链）", () => {
     expect(fs.existsSync(path.join(root, "plan", "milestones", "M2-auth-t1.md"))).toBe(false);
   });
 
+  it("标题为空或纯空白 → 报错且不落盘", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split14-"));
+    await makeSampleProject(root);
+    expect(() => splitNode(root, "M2-auth", [""])).toThrow(/任务标题不能为空白/);
+    expect(() => splitNode(root, "M2-auth", ["   "])).toThrow(/任务标题不能为空白/);
+    expect(fs.existsSync(path.join(root, "plan", "milestones", "M2-auth-t1.md"))).toBe(false);
+  });
+
   it("正文含行首 deps: [ 示例 + 块式 frontmatter deps → 只改 frontmatter、正文原样", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-split13-"));
     await makeSampleProject(root);

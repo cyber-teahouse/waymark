@@ -108,7 +108,7 @@ export function createMcpServer(root: string): McpServer {
     "waymark_split_node",
     {
       description:
-        "把节点拆成任务链：titles 每项生成一个 task 文件（type: task，链式依赖），原节点 deps 改为指向全部任务；验收/证据留在原节点——大里程碑先拆细再逐个 waymark_start_node 认领",
+        "把节点拆成任务链：titles 每项生成一个 task 文件（type: task，链式依赖），原节点 deps 改为指向全部任务；生成任务 id 为 {id}-t1…-tN；验收/证据留在原节点——大里程碑先拆细再逐个 waymark_start_node 认领",
       inputSchema: { id: z.string().min(1), titles: z.array(z.string().min(1)).min(1) },
     },
     async ({ id, titles }) => {

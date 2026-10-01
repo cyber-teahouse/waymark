@@ -315,4 +315,17 @@ describe("waymark_split_node", () => {
     await client.close();
     await server.close();
   });
+
+  it("已完成节点（M1-core）不可拆分——返回 isError", async () => {
+    resetWorkflowCache();
+    const root = await makeTempSample();
+    const { server, client } = await setup(root);
+    const bad = await client.callTool({
+      name: "waymark_split_node",
+      arguments: { id: "M1-core", titles: ["任务"] },
+    });
+    expect(bad.isError).toBe(true);
+    await client.close();
+    await server.close();
+  });
 });

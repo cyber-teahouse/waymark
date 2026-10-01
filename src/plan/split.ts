@@ -48,6 +48,8 @@ export function splitNode(root: string, id: string, titles: string[]): SplitResu
   for (const t of titles) {
     // 多行标题经 YAML 双引号标量会折叠成空格，静默改掉标题——直接拒绝
     if (/\r?\n/.test(t)) throw new Error("任务标题不能包含换行");
+    // 空白标题只会生成空壳 task 文件——trim 后为空直接拒绝
+    if (t.trim() === "") throw new Error("任务标题不能为空白");
   }
   const plan = loadPlan(root);
   const doc = plan.nodes.find((n) => n.fm.id === id);
