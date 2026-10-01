@@ -28,7 +28,8 @@ function relTime(iso: string, now: Date): string | null {
 /** 渲染终端进度一览（纯函数：workflow 进、文本出，便于测试）。 */
 export function renderStatus(wf: WorkflowJson, now: Date = new Date()): string {
   const s = wf.stats;
-  const pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+  const pct =
+    typeof s.progress === "number" ? s.progress : s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
   const filled = Math.round((pct / 100) * BAR_W);
   const bar = "█".repeat(filled) + "░".repeat(BAR_W - filled);
 

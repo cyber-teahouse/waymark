@@ -143,6 +143,17 @@ describe("renderStatus", () => {
   });
 });
 
+describe("加权进度条", () => {
+  it("progress 字段存在时按加权口径展示（样例 50% 而非节点比 33%）", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-statusp-"));
+    await makeSampleProject(root);
+    const { buildWorkflow } = await import("../src/sync/build.js");
+    const { workflow } = await buildWorkflow(root);
+    const out = renderStatus(workflow, new Date());
+    expect(out).toContain("50%（1/3）");
+  });
+});
+
 describe("waymark status 命令", () => {
   it("已 sync 项目输出一览", async () => {
     const root = await syncedProject();
