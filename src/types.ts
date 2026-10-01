@@ -147,6 +147,9 @@ export const WorkflowJsonSchema = z.object({
     blocked: z.number(),
     dropped: z.number(),
     warnings: z.number(),
+    acceptanceTotal: z.number().optional(),
+    acceptanceDone: z.number().optional(),
+    progress: z.number().optional(),
   }),
 });
 export type WorkflowJson = z.infer<typeof WorkflowJsonSchema>;

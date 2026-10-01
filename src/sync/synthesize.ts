@@ -82,6 +82,14 @@ export async function synthesize(input: SynthesizeInput): Promise<WorkflowJson> 
     });
   }
 
+  // 验收项加权进度：非 dropped 节点各占 1 权重，done 记 1，否则记已勾验收占比（无验收记 0）
+  const active = wfNodes.filter((n) => n.displayStatus !== "dropped");
+  const accDone = (n: WorkflowNode): number => n.acceptance.filter((a) => a.done).length;
+  const weight = active.reduce(
+    (sum, n) =>
+      sum + (n.displayStatus === "done" ? 1 : n.acceptance.length > 0 ? accDone(n) / n.acceptance.length : 0),
+    0,
+  );
   const stats = {
     total: wfNodes.length,
     done: wfNodes.filter((n) => n.displayStatus === "done").length,
@@ -90,6 +98,9 @@ export async function synthesize(input: SynthesizeInput): Promise<WorkflowJson> 
     blocked: wfNodes.filter((n) => n.displayStatus === "blocked").length,
     dropped: wfNodes.filter((n) => n.displayStatus === "dropped").length,
     warnings: wfNodes.filter((n) => n.warning !== null).length,
+    acceptanceTotal: active.reduce((sum, n) => sum + n.acceptance.length, 0),
+    acceptanceDone: active.reduce((sum, n) => sum + accDone(n), 0),
+    progress: active.length > 0 ? Math.round((weight / active.length) * 100) : 0,
   };
 
   const workflow: WorkflowJson = {

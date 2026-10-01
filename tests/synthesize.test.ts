@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { dropNode } from "../src/plan/commands.js";
 import { buildWorkflow } from "../src/sync/build.js";
 import { computeDisplay } from "../src/sync/synthesize.js";
 import { makeSampleProject } from "./helpers.js";
@@ -64,5 +65,34 @@ describe("buildWorkflow on sample project", () => {
     expect(workflow.stats.done).toBe(1);
     expect(workflow.nodes.every((n) => typeof n.cycle === "boolean")).toBe(true);
     expect(workflow.issues).toEqual([]);
+  });
+});
+
+describe("验收项加权进度（stats.progress）", () => {
+  it("done 记满、未 done 记验收勾选占比、dropped 不计权重", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-wprogress-"));
+    await makeSampleProject(root);
+    const { workflow } = await buildWorkflow(root);
+    // 样例：M1-core done(2/2) + M2-auth in-progress(1/2) + M3-login planned(无验收)
+    // 权重 = (1 + 0.5 + 0) / 3 = 50%
+    expect(workflow.stats.progress).toBe(50);
+    expect(workflow.stats.acceptanceTotal).toBe(4);
+    expect(workflow.stats.acceptanceDone).toBe(3);
+  });
+
+  it("dropped 节点不计权重与验收统计；全部 dropped 时 progress 为 0（防除零）", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pf-wprogress2-"));
+    await makeSampleProject(root);
+    await dropNode(root, "M2-auth", { note: "外包" });
+    await dropNode(root, "M3-login", { note: "砍掉" });
+    let { workflow } = await buildWorkflow(root);
+    // 只剩 done 的 M1-core：权重 1/1，验收只统计 M1 的 2/2
+    expect(workflow.stats.progress).toBe(100);
+    expect(workflow.stats.acceptanceTotal).toBe(2);
+    expect(workflow.stats.acceptanceDone).toBe(2);
+
+    await dropNode(root, "M1-core", { note: "全部放弃" });
+    ({ workflow } = await buildWorkflow(root));
+    expect(workflow.stats.progress).toBe(0);
   });
 });
