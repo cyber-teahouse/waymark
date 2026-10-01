@@ -129,7 +129,7 @@ export function renderHubHtml(entries: HubEntry[], generatedAt: string): string 
         <div class="hub-sub">${s.done} / ${s.total} 完成${rel ? ` · ${rel}` : ""}${stale ? ` · <b class="hub-stale">数据已过期</b>` : ""}</div></div>
       </div>
       <div class="hub-bars">
-        <div class="hub-bar"><i style="width:${s.total ? (s.done / s.total) * 100 : 0}%"></i></div>
+        <div class="hub-bar"><i style="width:${percent}%"></i></div>
         <div class="hub-meta">
           <span>${s.total} 节点</span><span class="c-done">完成 ${s.done}</span>
           <span class="c-wip">进行中 ${s.inProgress}</span><span>未开始 ${s.planned}</span>
